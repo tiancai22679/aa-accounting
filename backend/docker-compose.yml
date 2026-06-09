@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  aa-accounting:
+    build: .
+    container_name: aa-accounting
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data:/app/data    # 数据库持久化到宿主机
+    environment:
+      - PORT=3001
+      - NODE_ENV=production
+    restart: unless-stopped

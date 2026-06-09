@@ -1,0 +1,29 @@
+<!--pages/profile/profile.wxml-->
+<view class="container">
+  <!-- 用户信息 -->
+  <view class="user-section">
+    <view class="user-avatar">{{userInfo.nickname[0] || 'U'}}</view>
+    <input class="nickname-input" value="{{nickname}}" bindinput="onNicknameInput" placeholder="请输入昵称" />
+    <button class="btn-save" bindtap="handleSaveNickname" loading="{{loading}}">保存昵称</button>
+  </view>
+
+  <!-- 我的群组 -->
+  <view class="section">
+    <text class="section-title">我的群组</text>
+    <button class="btn-action" bindtap="goToIndex">查看我的群组</button>
+  </view>
+
+  <!-- 设置 -->
+  <view class="section">
+    <text class="section-title">设置</text>
+    <view class="setting-item" bindtap="handleClearCache">
+      <text>清除缓存</text>
+      <text class="arrow">></text>
+    </view>
+  </view>
+
+  <!-- 退出登录 -->
+  <view class="logout-section">
+    <button class="btn-logout" bindtap="handleLogout">退出登录</button>
+  </view>
+</view>

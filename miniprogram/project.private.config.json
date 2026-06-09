@@ -1,0 +1,8 @@
+{
+  "description": "此文件包含私密配置，请勿上传到版本管理",
+  "setting": {
+    "compileHotReLoad": true,
+    "urlCheck": false
+  },
+  "condition": {}
+}

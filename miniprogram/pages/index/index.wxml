@@ -1,0 +1,61 @@
+<!--pages/index/index.wxml-->
+<view class="container">
+  <!-- 顶部操作栏 -->
+  <view class="action-bar">
+    <button class="btn-action btn-create" bindtap="showCreate">+ 创建群组</button>
+    <button class="btn-action btn-join" bindtap="showJoin">🔗 加入群组</button>
+  </view>
+
+  <!-- 群组列表 -->
+  <view class="group-list" wx:if="{{!loading && groups.length > 0}}">
+    <view class="group-card card" wx:for="{{groups}}" wx:key="id" bindtap="goToGroup" data-id="{{item.id}}">
+      <view class="group-info">
+        <text class="group-name">{{item.name}}</text>
+        <text class="group-desc">{{item.description || '暂无描述'}}</text>
+      </view>
+      <view class="group-meta">
+        <text class="member-count">👥 {{item.member_count || 0}}人</text>
+        <text class="group-amount">¥{{item.total_amount || 0}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{!loading && groups.length === 0}}">
+    <text class="empty-icon">📋</text>
+    <text class="empty-text">暂无记账群组</text>
+    <text class="empty-tip">点击上方按钮创建或加入群组</text>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="loading" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+
+  <!-- 创建群组弹窗 -->
+  <view class="modal" wx:if="{{showCreateModal}}">
+    <view class="modal-mask" bindtap="closeCreate"></view>
+    <view class="modal-content">
+      <text class="modal-title">创建记账群组</text>
+      <input class="modal-input" placeholder="群组名称" value="{{newGroupName}}" bindinput="onGroupNameInput" />
+      <textarea class="modal-textarea" placeholder="群组描述（可选）" value="{{newGroupDesc}}" bindinput="onGroupDescInput" />
+      <view class="modal-buttons">
+        <button class="btn-cancel" bindtap="closeCreate">取消</button>
+        <button class="btn-confirm" bindtap="handleCreateGroup">创建</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 加入群组弹窗 -->
+  <view class="modal" wx:if="{{showJoinModal}}">
+    <view class="modal-mask" bindtap="closeJoin"></view>
+    <view class="modal-content">
+      <text class="modal-title">加入记账群组</text>
+      <input class="modal-input" placeholder="输入邀请码" value="{{inviteCode}}" bindinput="onInviteCodeInput" maxlength="6" />
+      <view class="modal-buttons">
+        <button class="btn-cancel" bindtap="closeJoin">取消</button>
+        <button class="btn-confirm" bindtap="handleJoinGroup">加入</button>
+      </view>
+    </view>
+  </view>
+</view>

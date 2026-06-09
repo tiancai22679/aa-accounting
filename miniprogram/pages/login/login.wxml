@@ -1,0 +1,15 @@
+<!--pages/login/login.wxml-->
+<view class="login-container">
+  <view class="login-header">
+    <text class="login-title">AA记账</text>
+    <text class="login-subtitle">和朋友一起记账，轻松分摊费用</text>
+  </view>
+
+  <view class="login-body">
+    <view class="login-icon">💰</view>
+    <button class="btn-login" bindtap="handleWechatLogin" loading="{{loading}}">
+      微信快捷登录
+    </button>
+    <text class="login-tip">登录后可用于创建和加入记账群组</text>
+  </view>
+</view>

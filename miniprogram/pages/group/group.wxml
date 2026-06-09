@@ -1,0 +1,89 @@
+<!--pages/group/group.wxml-->
+<view class="container" wx:if="{{!loading && group}}">
+  <!-- 群组头部 -->
+  <view class="group-header">
+    <view class="group-title-row">
+      <text class="group-name">{{group.name}}</text>
+      <text class="group-role">{{group.role === 'owner' ? '群主' : '成员'}}</text>
+    </view>
+    <text class="group-desc">{{group.description || '暂无描述'}}</text>
+    <view class="group-stats">
+      <text class="stat-item">👥 {{group.member_count || 0}}人</text>
+      <text class="stat-item">📊 {{group.stats.expense_count || 0}}笔</text>
+      <text class="stat-item">💰 ¥{{group.stats.total_amount || 0}}</text>
+    </view>
+  </view>
+
+  <!-- 操作按钮 -->
+  <view class="action-buttons">
+    <button class="btn-add" bindtap="goAddExpense">+ 记一笔</button>
+    <button class="btn-settle" bindtap="goSettlement">�Recipe 结算</button>
+    <button class="btn-members" bindtap="showMembers">👥 成员</button>
+  </view>
+
+  <!-- 账单列表 -->
+  <view class="expense-list">
+    <view class="expense-item card" wx:for="{{expenses}}" wx:key="id">
+      <view class="expense-left">
+        <text class="expense-icon">{{item.category_icon || '💰'}}</text>
+        <view class="expense-info">
+          <text class="expense-desc">{{item.description || item.category_name}}</text>
+          <text class="expense-payer">{{item.payer_name}}</text>
+          <text class="expense-date">{{item.expense_date}}</text>
+        </view>
+      </view>
+      <view class="expense-right">
+        <text class="expense-amount">¥{{item.amount}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空账单 -->
+  <view class="empty-state" wx:if="{{expenses.length === 0}}">
+    <text class="empty-icon">📝</text>
+    <text class="empty-text">暂无账单记录</text>
+    <text class="empty-tip">点击"记一笔"开始记账</text>
+  </view>
+
+  <!-- 成员列表弹窗 -->
+  <view class="modal" wx:if="{{showMemberModal}}">
+    <view class="modal-mask" bindtap="closeMembers"></view>
+    <view class="modal-content">
+      <text class="modal-title">群成员（{{group.member_count || 0}}）</text>
+      <view class="member-list">
+        <view class="member-item" wx:for="{{group.members}}" wx:key="id">
+          <text class="member-name">{{item.nickname}}</text>
+          <text class="member-role">{{item.role === 'owner' ? '群主' : '成员'}}</text>
+        </view>
+      </view>
+      <button class="btn-close" bindtap="closeMembers">关闭</button>
+    </view>
+  </view>
+
+  <!-- 邀请码弹窗 -->
+  <view class="modal" wx:if="{{showInviteModal}}">
+    <view class="modal-mask" bindtap="closeInvite"></view>
+    <view class="modal-content">
+      <text class="modal-title">群组邀请码</text>
+      <view class="invite-code-box">
+        <text class="invite-code">{{inviteCode}}</text>
+      </view>
+      <text class="invite-tip">将邀请码分享给好友，他们输入邀请码即可加入</text>
+      <view class="modal-buttons">
+        <button class="btn-copy" bindtap="copyInviteCode">复制邀请码</button>
+        <button class="btn-close" bindtap="closeInvite">关闭</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部操作 -->
+  <view class="bottom-actions">
+    <button class="btn-invite" bindtap="showInvite">📤 邀请好友</button>
+    <button class="btn-leave" bindtap="handleLeaveGroup">🚪 退出群组</button>
+  </view>
+</view>
+
+<!-- 加载中 -->
+<view class="loading" wx:if="{{loading}}">
+  <text>加载中...</text>
+</view>

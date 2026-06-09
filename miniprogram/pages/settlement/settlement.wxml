@@ -1,0 +1,69 @@
+<!--pages/settlement/settlement.wxml-->
+<view class="container" wx:if="{{!loading}}">
+  <!-- 总支出 -->
+  <view class="total-section">
+    <text class="total-label">群组总支出</text>
+    <text class="total-amount">¥{{totalExpense}}</text>
+  </view>
+
+  <!-- 个人余额 -->
+  <view class="section">
+    <text class="section-title">个人明细</text>
+    <view class="balance-list">
+      <view class="balance-item" wx:for="{{balances}}" wx:key="userId">
+        <view class="balance-left">
+          <text class="balance-avatar">{{item.nickname[0] || 'U'}}</text>
+          <text class="balance-name">{{item.nickname}}</text>
+        </view>
+        <view class="balance-right">
+          <text class="balance-paid">付¥{{item.paid}}</text>
+          <text class="balance-owed">担¥{{item.owed}}</text>
+          <text class="balance-net {{item.balance >= 0 ? 'positive' : 'negative'}}">{{item.balance >= 0 ? '+' : ''}}{{item.balance}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 结算方案 -->
+  <view class="section" wx:if="{{settlements.length > 0}}">
+    <text class="section-title">结算方案</text>
+    <view class="settlement-list">
+      <view class="settlement-item" wx:for="{{settlements}}" wx:key="index">
+        <view class="settlement-info">
+          <text class="settlement-from">{{item.fromNickname}}</text>
+          <text class="settlement-arrow">→</text>
+          <text class="settlement-to">{{item.toNickname}}</text>
+          <text class="settlement-amount">¥{{item.amount}}</text>
+        </view>
+        <button class="btn-confirm" size="mini" bindtap="handleConfirmSettlement"
+          data-fromuserid="{{item.fromUserId}}"
+          data-touserid="{{item.toUserId}}"
+          data-amount="{{item.amount}}"
+          data-fromnickname="{{item.fromNickname}}"
+          data-tonickname="{{item.toNickname}}">确认已付</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 结算历史 -->
+  <view class="section" wx:if="{{history.length > 0}}">
+    <text class="section-title">结算历史</text>
+    <view class="history-list">
+      <view class="history-item" wx:for="{{history}}" wx:key="id">
+        <text class="history-text">{{item.from_nickname}} → {{item.to_nickname}}: ¥{{item.amount}}</text>
+        <text class="history-time">{{item.settled_at}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{settlements.length === 0 && history.length === 0}}">
+    <text class="empty-icon">🎉</text>
+    <text class="empty-text">暂无待结算款项</text>
+  </view>
+</view>
+
+<!-- 加载中 -->
+<view class="loading" wx:if="{{loading}}">
+  <text>加载中...</text>
+</view>

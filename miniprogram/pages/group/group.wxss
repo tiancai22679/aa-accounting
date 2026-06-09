@@ -1,0 +1,301 @@
+/* pages/group/group.wxss */
+.container {
+  padding: 20rpx;
+  padding-bottom: 200rpx;
+}
+
+.group-header {
+  background: linear-gradient(135deg, #4CAF50, #2E7D32);
+  padding: 40rpx;
+  border-radius: 20rpx;
+  margin-bottom: 30rpx;
+  color: white;
+}
+
+.group-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.group-name {
+  font-size: 44rpx;
+  font-weight: bold;
+}
+
+.group-role {
+  font-size: 28rpx;
+  background: rgba(255,255,255,0.3);
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+}
+
+.group-desc {
+  font-size: 30rpx;
+  opacity: 0.9;
+  display: block;
+  margin-bottom: 30rpx;
+}
+
+.group-stats {
+  display: flex;
+  justify-content: space-around;
+  background: rgba(255,255,255,0.15);
+  padding: 20rpx;
+  border-radius: 12rpx;
+}
+
+.stat-item {
+  font-size: 28rpx;
+}
+
+/* 操作按钮 */
+.action-buttons {
+  display: flex;
+  gap: 20rpx;
+  margin-bottom: 30rpx;
+}
+
+.btn-add {
+  flex: 1;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 12rpx;
+  font-size: 32rpx;
+}
+
+.btn-settle {
+  flex: 1;
+  background: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 12rpx;
+  font-size: 32rpx;
+}
+
+.btn-members {
+  flex: 1;
+  background: white;
+  color: #4CAF50;
+  border: 2rpx solid #4CAF50;
+  border-radius: 12rpx;
+  font-size: 32rpx;
+}
+
+/* 账单列表 */
+.expense-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.expense-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30rpx;
+}
+
+.expense-left {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  flex: 1;
+}
+
+.expense-icon {
+  font-size: 48rpx;
+}
+
+.expense-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.expense-desc {
+  font-size: 32rpx;
+  color: #333;
+}
+
+.expense-payer, .expense-date {
+  font-size: 26rpx;
+  color: #666;
+}
+
+.expense-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.expense-amount {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #f44336;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 150rpx 40rpx;
+}
+
+.empty-icon {
+  font-size: 120rpx;
+  margin-bottom: 40rpx;
+}
+
+.empty-text {
+  font-size: 36rpx;
+  color: #666;
+  margin-bottom: 20rpx;
+}
+
+.empty-tip {
+  font-size: 28rpx;
+  color: #999;
+}
+
+/* 弹窗样式 */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+  position: relative;
+  width: 80%;
+  background: white;
+  border-radius: 20rpx;
+  padding: 40rpx;
+  z-index: 1001;
+}
+
+.modal-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  display: block;
+  text-align: center;
+  margin-bottom: 40rpx;
+}
+
+.member-list {
+  max-height: 400rpx;
+  overflow-y: auto;
+}
+
+.member-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.member-name {
+  font-size: 32rpx;
+  color: #333;
+}
+
+.member-role {
+  font-size: 28rpx;
+  color: #666;
+}
+
+.invite-code-box {
+  background: #f5f5f5;
+  padding: 30rpx;
+  border-radius: 12rpx;
+  text-align: center;
+  margin-bottom: 30rpx;
+}
+
+.invite-code {
+  font-size: 48rpx;
+  font-weight: bold;
+  color: #4CAF50;
+  letter-spacing: 8rpx;
+}
+
+.invite-tip {
+  font-size: 28rpx;
+  color: #666;
+  display: block;
+  text-align: center;
+  margin-bottom: 40rpx;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 20rpx;
+}
+
+.btn-copy {
+  flex: 1;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 12rpx;
+  font-size: 32rpx;
+}
+
+.btn-close {
+  flex: 1;
+  background: #f5f5f5;
+  color: #666;
+  border: none;
+  border-radius: 12rpx;
+  font-size: 32rpx;
+}
+
+/* 底部操作 */
+.bottom-actions {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  padding: 20rpx 40rpx;
+  box-shadow: 0 -2rpx 12rpx rgba(0,0,0,0.1);
+  display: flex;
+  gap: 20rpx;
+}
+
+.btn-invite {
+  flex: 1;
+  background: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 12rpx;
+  font-size: 32rpx;
+}
+
+.btn-leave {
+  flex: 1;
+  background: #f5f5f5;
+  color: #666;
+  border: none;
+  border-radius: 12rpx;
+  font-size: 32rpx;
+}

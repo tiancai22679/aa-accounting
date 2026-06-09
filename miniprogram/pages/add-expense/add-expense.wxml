@@ -1,0 +1,59 @@
+<!--pages/add-expense/add-expense.wxml-->
+<view class="container">
+  <!-- 金额输入 -->
+  <view class="amount-section">
+    <text class="currency">¥</text>
+    <input class="amount-input" type="digit" placeholder="0.00" value="{{amount}}" bindinput="onAmountInput" focus="{{true}}" />
+  </view>
+
+  <!-- 类别选择 -->
+  <view class="section">
+    <text class="section-title">选择类别</text>
+    <view class="category-grid">
+      <view class="category-item {{categoryId == item.id ? 'active' : ''}}"
+        wx:for="{{categories}}" wx:key="id"
+        bindtap="selectCategory" data-id="{{item.id}}">
+        <text class="category-icon">{{item.icon}}</text>
+        <text class="category-name">{{item.name}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 描述输入 -->
+  <view class="section">
+    <text class="section-title">描述</text>
+    <input class="desc-input" placeholder="请输入描述（可选）" value="{{description}}" bindinput="onDescInput" />
+  </view>
+
+  <!-- 日期选择 -->
+  <view class="section">
+    <text class="section-title">日期</text>
+    <picker mode="date" value="{{expenseDate}}" bindchange="onDateChange">
+      <view class="date-picker">
+        <text>{{expenseDate || '选择日期'}}</text>
+        <text class="arrow">></text>
+      </view>
+    </picker>
+  </view>
+
+  <!-- 分摊成员 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">分摊成员</text>
+      <text class="split-mode" bindtap="switchSplitMode">{{splitMode === 'equal' ? '均分' : '自定义'}}</text>
+    </view>
+    <view class="member-grid">
+      <view class="member-item {{selectedMembers.indexOf(item.user_id) >= 0 ? 'selected' : ''}}"
+        wx:for="{{members}}" wx:key="user_id"
+        bindtap="toggleMember" data-id="{{item.user_id}}">
+        <text class="member-avatar">{{item.nickname[0] || 'U'}}</text>
+        <text class="member-name">{{item.nickname}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 提交按钮 -->
+  <view class="submit-section">
+    <button class="btn-submit" bindtap="handleSubmit" loading="{{loading}}">记一笔</button>
+  </view>
+</view>
