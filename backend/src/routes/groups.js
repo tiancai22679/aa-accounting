@@ -286,6 +286,7 @@ router.delete('/:id', (req, res) => {
     const db = getDB();
     const groupId = req.params.id;
 
+    // 验证创建人身份
     const membership = db.get(
       'SELECT * FROM group_members WHERE group_id = ? AND user_id = ? AND role = ?',
       [groupId, req.user.id, 'owner']
@@ -295,7 +296,28 @@ router.delete('/:id', (req, res) => {
       return res.status(403).json({ code: 403, message: '仅创建人可解散账本' });
     }
 
-    db.run('DELETE FROM groups_table WHERE id = ?', [groupId]);
+    // 使用事务同时删除所有相关数据，避免孤立数据
+    const deleteGroupTransaction = db.transaction(function() {
+      // 1. 删除账单分摊记录
+      db.run(`
+        DELETE FROM expense_splits
+        WHERE expense_id IN (SELECT id FROM expenses WHERE group_id = ?)
+      `, [groupId]);
+
+      // 2. 删除账单记录
+      db.run('DELETE FROM expenses WHERE group_id = ?', [groupId]);
+
+      // 3. 删除结算记录
+      db.run('DELETE FROM settlements WHERE group_id = ?', [groupId]);
+
+      // 4. 删除成员记录
+      db.run('DELETE FROM group_members WHERE group_id = ?', [groupId]);
+
+      // 5. 删除账本记录
+      db.run('DELETE FROM groups_table WHERE id = ?', [groupId]);
+    });
+
+    deleteGroupTransaction();
 
     res.json({ code: 0, message: '账本已解散' });
   } catch (err) {

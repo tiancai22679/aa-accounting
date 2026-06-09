@@ -245,6 +245,7 @@ var App = {
         '<div class="group-quick-actions">' +
           '<button id="btn-add-expense" class="btn btn-primary">+ 记一笔</button>' +
           '<button id="btn-settlement" class="btn btn-outline">查看结算</button>' +
+          (isOwner ? '<button id="btn-delete-group" class="btn btn-outline btn-danger">🗑️ 删除账本</button>' : '') +
         '</div>' +
         '<div class="section-title">账单记录</div>' +
         '<div class="expense-list">' + expenseHtml + '</div>';
@@ -255,6 +256,20 @@ var App = {
       // 编辑账本名称（仅创建人）
       if (isOwner) {
         $('#btn-edit-group-name').onclick = function() { self._showEditGroupNameModal(groupId, detail.name); };
+      }
+
+      // 删除账本（仅创建人）
+      if (isOwner) {
+        $('#btn-delete-group').onclick = async function() {
+          if (!confirm('确定要删除账本「' + detail.name + '」吗？\n此操作不可恢复，所有账单记录将被永久删除！')) return;
+          try {
+            await API.deleteGroup(groupId);
+            self.showToast('账本已删除！');
+            self.renderDashboard();
+          } catch (err) {
+            self.showToast('删除失败: ' + err.message, 'error');
+          }
+        };
       }
 
       // 绑定账单卡片点击事件

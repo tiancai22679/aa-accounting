@@ -90,6 +90,10 @@ const API = {
     return this.request('DELETE', '/groups/' + groupId + '/leave');
   },
 
+  deleteGroup(groupId) {
+    return this.request('DELETE', '/groups/' + groupId);
+  },
+
   // === Expenses ===
   getExpenses(groupId) {
     return this.request('GET', '/expenses?groupId=' + groupId);
