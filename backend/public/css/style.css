@@ -105,6 +105,11 @@ input, select, button { font-family: inherit; font-size: 15px; }
   font-size: 13px; font-weight: 500; color: var(--text-light);
   max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.shell-user-btn {
+  background: none; border: none; cursor: pointer; padding: 4px 6px;
+  border-radius: 6px; transition: background 0.15s;
+}
+.shell-user-btn:hover { background: rgba(0,0,0,0.06); color: var(--primary); }
 .shell-content { flex: 1; padding: 16px; overflow-y: auto; padding-bottom: 80px; }
 
 /* === Dashboard === */

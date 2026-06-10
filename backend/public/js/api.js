@@ -60,6 +60,10 @@ const API = {
     return this.request('GET', '/auth/profile');
   },
 
+  async updateProfile(nickname) {
+    return this.request('PUT', '/users/profile', { nickname });
+  },
+
   async logout() {
     try { await this.request('POST', '/auth/logout'); } catch (e) {}
     this.clearToken();

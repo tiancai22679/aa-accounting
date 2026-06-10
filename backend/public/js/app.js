@@ -534,7 +534,7 @@ var App = {
       : '<button id="btn-back" class="shell-back">&larr; 返回</button>';
     
     var user = this.user || JSON.parse(localStorage.getItem('user') || 'null');
-    var userHtml = user ? '<div class="shell-user"><span class="shell-user-name">' + this.escape(user.nickname || user.username) + '</span></div>' : '';
+    var userHtml = user ? '<div class="shell-user"><button id="btn-edit-nickname" class="shell-user-name shell-user-btn" title="点击修改昵称">' + this.escape(user.nickname || user.username) + ' ✏️</button></div>' : '';
     
     $('#app-container').innerHTML =
       '<div class="page-shell">' +
@@ -565,6 +565,12 @@ var App = {
     if (showBottomBar) {
       $('#btn-bottom-expense').onclick = function() { self.renderAddExpense(self.currentGroupId, self._cachedMembers); };
       $('#btn-bottom-settlement').onclick = function() { self.renderSettlement(self.currentGroupId); };
+    }
+
+    // 用户名/昵称点击 → 修改弹窗（所有页面通用）
+    var nicknameBtn = document.getElementById('btn-edit-nickname');
+    if (nicknameBtn) {
+      nicknameBtn.onclick = function() { self._showEditNicknameModal(); };
     }
   },
 
@@ -627,6 +633,54 @@ var App = {
         self.renderDashboard();
       } catch (err) {
         self.showToast('加入失败: ' + err.message, 'error');
+      }
+    };
+  },
+
+  _showEditNicknameModal() {
+    var self = this;
+    var currentNickname = (this.user && (this.user.nickname || this.user.username)) || '';
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'modal-overlay';
+    overlay.innerHTML = '<div class="modal">' +
+      '<h3>修改昵称</h3>' +
+      '<div class="form-group"><label>新昵称</label><input type="text" id="modal-nickname" value="' + self.escape(currentNickname) + '" placeholder="输入新昵称" maxlength="20" autocomplete="off" /></div>' +
+      '<div class="modal-actions">' +
+        '<button id="btn-modal-cancel" class="btn btn-outline">取消</button>' +
+        '<button id="btn-modal-confirm" class="btn btn-primary">保存</button>' +
+      '</div></div>';
+    document.body.appendChild(overlay);
+
+    setTimeout(function() {
+      var input = document.getElementById('modal-nickname');
+      if (input) { input.focus(); input.select(); }
+    }, 50);
+
+    overlay.onclick = function(e) { if (e.target === overlay) self._hideModal(); };
+    document.getElementById('btn-modal-cancel').onclick = function() { self._hideModal(); };
+    document.getElementById('btn-modal-confirm').onclick = async function() {
+      var nickname = (document.getElementById('modal-nickname').value || '').trim();
+      if (!nickname) { self.showToast('昵称不能为空', 'error'); return; }
+      if (nickname === currentNickname) { self._hideModal(); return; }
+      this.disabled = true;
+      this.textContent = '保存中...';
+      try {
+        await API.updateProfile(nickname);
+        // 更新本地缓存
+        if (self.user) {
+          self.user.nickname = nickname;
+          localStorage.setItem('user', JSON.stringify(self.user));
+        }
+        self._hideModal();
+        self.showToast('昵称已更新！');
+        // 刷新顶部显示
+        var nameEl = document.getElementById('btn-edit-nickname');
+        if (nameEl) nameEl.textContent = nickname + ' ✏️';
+      } catch (err) {
+        self.showToast('修改失败: ' + err.message, 'error');
+        this.disabled = false;
+        this.textContent = '保存';
       }
     };
   },
