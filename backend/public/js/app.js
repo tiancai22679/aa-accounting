@@ -246,12 +246,6 @@ var App = {
             var isSettled = m.is_settled == 1;
             var settledCls = isSettled ? ' member-tag-settled' : '';
             var settledIcon = isSettled ? ' ✅' : '';
-            if (isOwner && m.user_id !== (self.user && self.user.id)) {
-              return '<span class="member-tag' + settledCls + '" data-uid="' + m.user_id + '" data-settled="' + (isSettled ? '1' : '0') + '">' +
-                self.escape(m.nickname || '成员') + settledIcon +
-                '<button class="btn-settle-member" data-uid="' + m.user_id + '" data-settled="' + (isSettled ? '1' : '0') + '" title="' + (isSettled ? '取消结算' : '标记已结算') + '">' +
-                (isSettled ? '↩' : '结算') + '</button></span>';
-            }
             return '<span class="member-tag' + settledCls + '">' + self.escape(m.nickname || '成员') + settledIcon + '</span>';
           }).join('') + '</div>' +
           '<div class="invite-code-row"><span>邀请码: <strong>' + detail.invite_code + '</strong></span></div>' +
@@ -284,27 +278,6 @@ var App = {
             self.showToast('删除失败: ' + err.message, 'error');
           }
         };
-      }
-
-      // 成员结算按钮（仅创建人可见）
-      if (isOwner) {
-        var settleBtns = document.querySelectorAll('.btn-settle-member');
-        for (var si = 0; si < settleBtns.length; si++) {
-          settleBtns[si].onclick = async function(e) {
-            e.stopPropagation();
-            var uid = this.getAttribute('data-uid');
-            var isAlreadySettled = this.getAttribute('data-settled') === '1';
-            var actionText = isAlreadySettled ? '取消结算标记' : '标记为已结算';
-            if (!confirm(actionText + '？')) return;
-            try {
-              await API.settleMember(groupId, uid, !isAlreadySettled);
-              self.showToast(isAlreadySettled ? '已取消结算标记' : '已标记为结算完成 ✅');
-              self.renderGroup(groupId);
-            } catch (err) {
-              self.showToast('操作失败: ' + err.message, 'error');
-            }
-          };
-        }
       }
 
       // 绑定账单卡片点击事件
@@ -532,8 +505,9 @@ var App = {
       var balanceHtml = (data.balances || []).map(function(b) {
         var cls = b.balance > 0 ? 'positive' : (b.balance < 0 ? 'negative' : 'zero');
         var sign = b.balance > 0 ? '+' : '';
-        return '<div class="balance-row ' + cls + '">' +
-          '<span class="balance-name">' + self.escape(b.nickname) + '</span>' +
+        var isSettled = !!b.isSettled;
+        return '<div class="balance-row ' + cls + (isSettled ? ' settled' : '') + '">' +
+          '<span class="balance-name">' + self.escape(b.nickname) + (isSettled ? ' ✅' : '') + '</span>' +
           '<div class="balance-detail">' +
             '<span class="balance-label">垫付 <strong>¥' + Number(b.paid).toFixed(2) + '</strong></span>' +
             '<span class="balance-label">应付 <strong>¥' + Number(b.owed).toFixed(2) + '</strong></span>' +
@@ -548,6 +522,37 @@ var App = {
           }).join('') + '</div>'
         : '<div class="empty-state"><p>🎉 所有账目已结清！</p></div>';
 
+      // 成员结算按钮区域
+      var detail = await API.getGroupDetail(groupId);
+      var isOwner = detail.created_by === this.user.id;
+      var members = detail.members || [];
+
+      var settleMemberHtml = '';
+      if (members.length > 1) {
+        var settleCards = members.map(function(m) {
+          // 获取该成员在结算数据中的余额信息
+          var bal = (data.balances || []).find(function(b) { return b.userId === m.user_id; });
+          var isSettled = m.is_settled == 1;
+          var balanceText = bal ? (bal.balance > 0 ? '应收 ¥' + bal.balance.toFixed(2) : bal.balance < 0 ? '应付 ¥' + Math.abs(bal.balance).toFixed(2) : '已平') : '';
+          var canSettle = (isOwner || m.user_id === (self.user && self.user.id));
+
+          return '<div class="settle-member-card' + (isSettled ? ' settled' : '') + '">' +
+            '<div class="settle-member-info">' +
+              '<span class="settle-member-name">' + self.escape(m.nickname || '成员') + (isSettled ? ' ✅' : '') + '</span>' +
+              '<span class="settle-member-balance">' + balanceText + '</span>' +
+            '</div>' +
+            '<div class="settle-member-action">' +
+              (canSettle
+                ? '<button class="btn btn-sm btn-settle-toggle' + (isSettled ? ' btn-settled' : ' btn-primary') + '" data-uid="' + m.user_id + '" data-settled="' + (isSettled ? '1' : '0') + '">' + (isSettled ? '已结算 ↩' : '标记结算') + '</button>'
+                : '<span class="settle-member-hint">' + (isSettled ? '已结算' : '仅本人或创建人可操作') + '</span>') +
+            '</div>' +
+          '</div>';
+        }).join('');
+
+        settleMemberHtml = '<div class="section-title">成员结算</div>' +
+          '<div class="settle-member-list">' + settleCards + '</div>';
+      }
+
       $('#page-content').innerHTML =
         '<div class="settlement-summary">' +
           '<div class="summary-stat"><div class="summary-value">¥' + Number(data.totalExpense || 0).toFixed(2) + '</div><div class="summary-label">总支出</div></div>' +
@@ -555,7 +560,32 @@ var App = {
         '</div>' +
         '<div class="section-title">个人余额</div>' +
         '<div class="balance-list">' + balanceHtml + '</div>' +
-        settlementHtml;
+        settlementHtml +
+        settleMemberHtml;
+
+      // 绑定结算按钮事件
+      var settleBtns = document.querySelectorAll('.btn-settle-toggle');
+      for (var si = 0; si < settleBtns.length; si++) {
+        settleBtns[si].onclick = async function(e) {
+          e.stopPropagation();
+          var btn = this;
+          var uid = btn.getAttribute('data-uid');
+          var isAlreadySettled = btn.getAttribute('data-settled') === '1';
+          var actionText = isAlreadySettled ? '取消结算标记' : '标记为已结算';
+          if (!confirm(actionText + '？')) return;
+          btn.disabled = true;
+          btn.textContent = '...';
+          try {
+            await API.settleMember(groupId, uid, !isAlreadySettled);
+            self.showToast(isAlreadySettled ? '已取消结算标记' : '已标记为结算完成 ✅');
+            self.renderSettlement(groupId);
+          } catch (err) {
+            btn.disabled = false;
+            btn.textContent = isAlreadySettled ? '已结算 ↩' : '标记结算';
+            self.showToast('操作失败: ' + err.message, 'error');
+          }
+        };
+      }
     } catch (err) {
       if (this._handleAuthError(err)) return;
       $('#page-content').innerHTML = '<div class="error-state"><p>加载失败: ' + self.escape(err.message) + '</p><button class="btn btn-outline" onclick="App.renderLogin()">重新登录</button></div>';

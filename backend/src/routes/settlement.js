@@ -38,10 +38,14 @@ router.get('/:groupId', (req, res) => {
       WHERE gm.group_id = ?
     `, [groupId]);
 
-    // 初始化每个人的余额
+    // 初始化每个人的余额（含结算状态）
     const balances = {};
     members.forEach(m => {
-      balances[m.user_id] = { userId: m.user_id, nickname: m.nickname, avatarUrl: m.avatar_url, paid: 0, owed: 0, balance: 0 };
+      balances[m.user_id] = {
+        userId: m.user_id, nickname: m.nickname, avatarUrl: m.avatar_url,
+        paid: 0, owed: 0, balance: 0,
+        isSettled: !!m.is_settled, settledAt: m.settled_at || null
+      };
     });
 
     // 获取所有未结算的分摊记录

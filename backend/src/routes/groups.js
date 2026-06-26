@@ -289,30 +289,39 @@ router.post('/:id/leave', (req, res) => {
 });
 
 /**
- * 标记成员已结算（仅创建人）
+ * 标记成员已结算
  * POST /api/groups/:id/members/:userId/settle
+ * - 所有人可结算自己，创建人可结算任何人
  * Body: { settled: true/false }
  */
 router.post('/:id/members/:userId/settle', (req, res) => {
   try {
     const db = getDB();
     const { id: groupId, userId } = req.params;
+    const targetUserId = parseInt(userId);
     const { settled = true } = req.body;
 
-    // 验证操作人身份（仅创建人可标记）
-    const membership = db.get(
-      'SELECT * FROM group_members WHERE group_id = ? AND user_id = ? AND role = ?',
-      [groupId, req.user.id, 'owner']
+    // 验证当前用户是账本成员
+    const currentMembership = db.get(
+      'SELECT * FROM group_members WHERE group_id = ? AND user_id = ?',
+      [groupId, req.user.id]
     );
-    if (!membership) {
-      return res.status(403).json({ code: 403, message: '仅创建人可标记结算状态' });
+    if (!currentMembership) {
+      return res.status(403).json({ code: 403, message: '你不是该账本成员' });
     }
 
-    // 不能操作自己（创建人自己的结算状态随全局走）
+    const isOwner = currentMembership.role === 'owner';
+    const isSelf = targetUserId === req.user.id;
+
+    // 权限检查：只能结算自己，owner 可结算所有人
+    if (!isSelf && !isOwner) {
+      return res.status(403).json({ code: 403, message: '只能标记自己的结算状态' });
+    }
+
     // 验证目标成员在此账本中
     const targetMember = db.get(
       'SELECT * FROM group_members WHERE group_id = ? AND user_id = ?',
-      [groupId, userId]
+      [groupId, targetUserId]
     );
     if (!targetMember) {
       return res.status(404).json({ code: 404, message: '该成员不在此账本中' });
