@@ -628,18 +628,25 @@ var App = {
     overlay.onclick = function(e) { if (e.target === overlay) self._hideModal(); };
     $('#btn-modal-cancel').onclick = function() { self._hideModal(); };
     $('#btn-modal-confirm').onclick = async function() {
+      var btn = this;
       var name = $('#modal-group-name').value.trim();
       if (!name) { self.showToast('请输入账本名称', 'error'); return; }
       var desc = $('#modal-group-desc').value.trim();
+      btn.disabled = true;
+      btn.textContent = '创建中...';
       try {
         var data = await API.createGroup(name, desc);
-        self._hideModal();
+        overlay.remove();  // 直接从 DOM 移除，不依赖 _hideModal
         self.showToast('账本「' + name + '」创建成功！邀请码: ' + data.invite_code);
         self.renderDashboard();
       } catch (err) {
+        btn.disabled = false;
+        btn.textContent = '创建';
         self.showToast('创建失败: ' + err.message, 'error');
       }
     };
+    // 自动聚焦输入框
+    setTimeout(function() { var inp = document.getElementById('modal-group-name'); if (inp) inp.focus(); }, 50);
   },
 
   _showJoinGroupModal() {
@@ -659,17 +666,24 @@ var App = {
     overlay.onclick = function(e) { if (e.target === overlay) self._hideModal(); };
     $('#btn-modal-cancel').onclick = function() { self._hideModal(); };
     $('#btn-modal-confirm').onclick = async function() {
+      var btn = this;
       var code = $('#modal-invite-code').value.trim().toUpperCase();
       if (!code || code.length < 6) { self.showToast('请输入6位邀请码', 'error'); return; }
+      btn.disabled = true;
+      btn.textContent = '加入中...';
       try {
         var data = await API.joinGroup(code);
-        self._hideModal();
+        overlay.remove();  // 直接从 DOM 移除，不依赖 _hideModal
         self.showToast('已加入账本「' + data.name + '」！');
         self.renderDashboard();
       } catch (err) {
+        btn.disabled = false;
+        btn.textContent = '加入';
         self.showToast('加入失败: ' + err.message, 'error');
       }
     };
+    // 自动聚焦输入框
+    setTimeout(function() { var inp = document.getElementById('modal-invite-code'); if (inp) inp.focus(); }, 50);
   },
 
   _showEditNicknameModal() {
@@ -695,11 +709,12 @@ var App = {
     overlay.onclick = function(e) { if (e.target === overlay) self._hideModal(); };
     document.getElementById('btn-modal-cancel').onclick = function() { self._hideModal(); };
     document.getElementById('btn-modal-confirm').onclick = async function() {
+      var btn = this;
       var nickname = (document.getElementById('modal-nickname').value || '').trim();
       if (!nickname) { self.showToast('昵称不能为空', 'error'); return; }
-      if (nickname === currentNickname) { self._hideModal(); return; }
-      this.disabled = true;
-      this.textContent = '保存中...';
+      if (nickname === currentNickname) { overlay.remove(); return; }
+      btn.disabled = true;
+      btn.textContent = '保存中...';
       try {
         await API.updateProfile(nickname);
         // 更新本地缓存
@@ -707,15 +722,15 @@ var App = {
           self.user.nickname = nickname;
           localStorage.setItem('user', JSON.stringify(self.user));
         }
-        self._hideModal();
+        overlay.remove();
         self.showToast('昵称已更新！');
         // 刷新顶部显示
         var nameEl = document.getElementById('btn-edit-nickname');
         if (nameEl) nameEl.textContent = nickname + ' ✏️';
       } catch (err) {
+        btn.disabled = false;
+        btn.textContent = '保存';
         self.showToast('修改失败: ' + err.message, 'error');
-        this.disabled = false;
-        this.textContent = '保存';
       }
     };
   },
@@ -737,14 +752,19 @@ var App = {
     overlay.onclick = function(e) { if (e.target === overlay) self._hideModal(); };
     $('#btn-modal-cancel').onclick = function() { self._hideModal(); };
     $('#btn-modal-confirm').onclick = async function() {
+      var btn = this;
       var name = $('#modal-group-name').value.trim();
       if (!name) { self.showToast('账本名称不能为空', 'error'); return; }
+      btn.disabled = true;
+      btn.textContent = '保存中...';
       try {
         await API.updateGroup(groupId, { name: name });
-        self._hideModal();
+        overlay.remove();
         self.showToast('账本名称已更新！');
         self.renderGroup(groupId);
       } catch (err) {
+        btn.disabled = false;
+        btn.textContent = '保存';
         self.showToast('修改失败: ' + err.message, 'error');
       }
     };
