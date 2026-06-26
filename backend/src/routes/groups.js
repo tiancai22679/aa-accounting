@@ -19,8 +19,17 @@ router.post('/', (req, res) => {
       return res.status(400).json({ code: 400, message: '账本名称不能为空' });
     }
 
-    // 生成唯一邀请码
-    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    // 生成唯一邀请码（6位纯数字或纯大写字母，随机选其中一种）
+    const genCode = () => {
+      const useDigits = Math.random() < 0.5;
+      const charset = useDigits ? '0123456789' : 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      let code = '';
+      for (let i = 0; i < 6; i++) {
+        code += charset[Math.floor(Math.random() * charset.length)];
+      }
+      return code;
+    };
+    const inviteCode = genCode();
 
     const result = db.run(
       'INSERT INTO groups_table (name, description, created_by, invite_code) VALUES (?, ?, ?, ?)',
