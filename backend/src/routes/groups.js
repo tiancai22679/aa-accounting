@@ -57,6 +57,7 @@ router.get('/', (req, res) => {
     const groups = db.all(`
       SELECT g.*,
         (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) as member_count,
+        (SELECT COUNT(*) FROM group_members WHERE group_id = g.id AND is_settled = 1) as settled_count,
         u.nickname as creator_name
       FROM groups_table g
       INNER JOIN group_members gm ON g.id = gm.group_id AND gm.user_id = ?
@@ -101,6 +102,7 @@ router.get('/:id', (req, res) => {
       FROM group_members gm
       LEFT JOIN users u ON gm.user_id = u.id
       WHERE gm.group_id = ?
+      ORDER BY gm.role DESC, gm.joined_at ASC
     `, [groupId]);
 
     // 账本总支出统计
@@ -274,6 +276,48 @@ router.post('/:id/leave', (req, res) => {
   } catch (err) {
     console.error('退出账本失败:', err);
     res.status(500).json({ code: 500, message: '退出账本失败' });
+  }
+});
+
+/**
+ * 标记成员已结算（仅创建人）
+ * POST /api/groups/:id/members/:userId/settle
+ * Body: { settled: true/false }
+ */
+router.post('/:id/members/:userId/settle', (req, res) => {
+  try {
+    const db = getDB();
+    const { id: groupId, userId } = req.params;
+    const { settled = true } = req.body;
+
+    // 验证操作人身份（仅创建人可标记）
+    const membership = db.get(
+      'SELECT * FROM group_members WHERE group_id = ? AND user_id = ? AND role = ?',
+      [groupId, req.user.id, 'owner']
+    );
+    if (!membership) {
+      return res.status(403).json({ code: 403, message: '仅创建人可标记结算状态' });
+    }
+
+    // 不能操作自己（创建人自己的结算状态随全局走）
+    // 验证目标成员在此账本中
+    const targetMember = db.get(
+      'SELECT * FROM group_members WHERE group_id = ? AND user_id = ?',
+      [groupId, userId]
+    );
+    if (!targetMember) {
+      return res.status(404).json({ code: 404, message: '该成员不在此账本中' });
+    }
+
+    db.run(
+      'UPDATE group_members SET is_settled = ?, settled_at = ? WHERE group_id = ? AND user_id = ?',
+      [settled ? 1 : 0, settled ? new Date().toISOString() : null, groupId, userId]
+    );
+
+    res.json({ code: 0, message: settled ? '已标记为结算完成' : '已取消结算标记' });
+  } catch (err) {
+    console.error('标记结算失败:', err);
+    res.status(500).json({ code: 500, message: '标记结算失败' });
   }
 });
 

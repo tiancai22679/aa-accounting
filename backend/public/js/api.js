@@ -98,6 +98,10 @@ const API = {
     return this.request('DELETE', '/groups/' + groupId);
   },
 
+  settleMember(groupId, userId, settled) {
+    return this.request('POST', '/groups/' + groupId + '/members/' + userId + '/settle', { settled: settled !== false });
+  },
+
   // === Expenses ===
   getExpenses(groupId) {
     return this.request('GET', '/expenses?groupId=' + groupId);

@@ -258,6 +258,13 @@ async function initDB() {
   try {
     dbInstance.run('UPDATE expenses SET creator_id = payer_id WHERE creator_id IS NULL');
   } catch (e) {}
+  // 迁移：group_members 加成员结算状态字段
+  try {
+    dbInstance.run('ALTER TABLE group_members ADD COLUMN is_settled INTEGER DEFAULT 0');
+  } catch (e) {}
+  try {
+    dbInstance.run('ALTER TABLE group_members ADD COLUMN settled_at DATETIME');
+  } catch (e) {}
 
   // 初始化默认类别
   const countRow = dbInstance.get('SELECT COUNT(*) as cnt FROM categories');

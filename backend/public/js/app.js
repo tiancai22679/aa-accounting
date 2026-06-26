@@ -141,11 +141,14 @@ var App = {
       var groups = await API.getGroups();
       var groupCards = groups.length > 0
         ? groups.map(function(g) {
+            var allSettled = g.member_count > 0 && g.settled_count >= g.member_count;
+            var settledBadge = allSettled ? '<span class="badge-settled">✅ 已结算</span>' : '';
+            var partialBadge = (!allSettled && g.settled_count > 0) ? '<span class="badge-partial">' + g.settled_count + '/' + g.member_count + ' 已结算</span>' : '';
             return '<div class="card group-card" data-gid="' + g.id + '">' +
               '<div class="group-card-header">' +
-                '<div class="group-avatar">' + self.escape(g.name || '?')[0] + '</div>' +
+                '<div class="group-avatar' + (allSettled ? ' group-avatar-settled' : '') + '">' + self.escape(g.name || '?')[0] + '</div>' +
                 '<div class="group-info">' +
-                  '<h3 class="group-name">' + self.escape(g.name) + '</h3>' +
+                  '<h3 class="group-name">' + self.escape(g.name) + (settledBadge || partialBadge) + '</h3>' +
                   '<p class="group-desc">' + self.escape(g.description || '') + ' · ' + (g.member_count || 0) + '人</p>' +
                 '</div>' +
                 (g.last_expense_amount ? '<div class="group-amount">¥' + Number(g.last_expense_amount).toFixed(2) + '</div>' : '') +
@@ -239,7 +242,18 @@ var App = {
         '<div class="group-detail-header">' +
           nameSection +
           '<div class="group-detail-desc">' + self.escape(detail.description || '') + '</div>' +
-          '<div class="member-tags">' + members.map(function(m) { return '<span class="member-tag">' + self.escape(m.nickname || '成员') + '</span>'; }).join('') + '</div>' +
+          '<div class="member-tags">' + members.map(function(m) {
+            var isSettled = m.is_settled == 1;
+            var settledCls = isSettled ? ' member-tag-settled' : '';
+            var settledIcon = isSettled ? ' ✅' : '';
+            if (isOwner && m.user_id !== (self.user && self.user.id)) {
+              return '<span class="member-tag' + settledCls + '" data-uid="' + m.user_id + '" data-settled="' + (isSettled ? '1' : '0') + '">' +
+                self.escape(m.nickname || '成员') + settledIcon +
+                '<button class="btn-settle-member" data-uid="' + m.user_id + '" data-settled="' + (isSettled ? '1' : '0') + '" title="' + (isSettled ? '取消结算' : '标记已结算') + '">' +
+                (isSettled ? '↩' : '结算') + '</button></span>';
+            }
+            return '<span class="member-tag' + settledCls + '">' + self.escape(m.nickname || '成员') + settledIcon + '</span>';
+          }).join('') + '</div>' +
           '<div class="invite-code-row"><span>邀请码: <strong>' + detail.invite_code + '</strong></span></div>' +
         '</div>' +
         '<div class="group-quick-actions">' +
@@ -270,6 +284,27 @@ var App = {
             self.showToast('删除失败: ' + err.message, 'error');
           }
         };
+      }
+
+      // 成员结算按钮（仅创建人可见）
+      if (isOwner) {
+        var settleBtns = document.querySelectorAll('.btn-settle-member');
+        for (var si = 0; si < settleBtns.length; si++) {
+          settleBtns[si].onclick = async function(e) {
+            e.stopPropagation();
+            var uid = this.getAttribute('data-uid');
+            var isAlreadySettled = this.getAttribute('data-settled') === '1';
+            var actionText = isAlreadySettled ? '取消结算标记' : '标记为已结算';
+            if (!confirm(actionText + '？')) return;
+            try {
+              await API.settleMember(groupId, uid, !isAlreadySettled);
+              self.showToast(isAlreadySettled ? '已取消结算标记' : '已标记为结算完成 ✅');
+              self.renderGroup(groupId);
+            } catch (err) {
+              self.showToast('操作失败: ' + err.message, 'error');
+            }
+          };
+        }
       }
 
       // 绑定账单卡片点击事件
