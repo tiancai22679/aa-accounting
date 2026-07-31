@@ -553,11 +553,35 @@ var App = {
           '<div class="settle-member-list">' + settleCards + '</div>';
       }
 
+      // 消费分类统计
+      var categoryStatsHtml = '';
+      var catStats = data.categoryStats || [];
+      if (catStats.length > 0) {
+        var catItems = catStats.map(function(cat) {
+          var pct = cat.percentage || 0;
+          return '<div class="cat-stat-item">' +
+            '<div class="cat-stat-header">' +
+              '<span class="cat-stat-icon">' + self.escape(cat.icon || '💰') + '</span>' +
+              '<span class="cat-stat-name">' + self.escape(cat.name || '其他') + '</span>' +
+              '<span class="cat-stat-count">' + (cat.count || 0) + '笔</span>' +
+              '<span class="cat-stat-amount">¥' + Number(cat.total || 0).toFixed(2) + '</span>' +
+            '</div>' +
+            '<div class="cat-stat-bar-wrap">' +
+              '<div class="cat-stat-bar" style="width:' + pct + '%"></div>' +
+            '</div>' +
+            '<span class="cat-stat-pct">' + pct + '%</span>' +
+          '</div>';
+        }).join('');
+        categoryStatsHtml = '<div class="section-title">消费分类统计</div>' +
+          '<div class="cat-stat-list">' + catItems + '</div>';
+      }
+
       $('#page-content').innerHTML =
         '<div class="settlement-summary">' +
           '<div class="summary-stat"><div class="summary-value">¥' + Number(data.totalExpense || 0).toFixed(2) + '</div><div class="summary-label">总支出</div></div>' +
           '<div class="summary-stat"><div class="summary-value">' + (data.memberCount || 0) + '</div><div class="summary-label">参与人数</div></div>' +
         '</div>' +
+        categoryStatsHtml +
         '<div class="section-title">个人余额</div>' +
         '<div class="balance-list">' + balanceHtml + '</div>' +
         settlementHtml +

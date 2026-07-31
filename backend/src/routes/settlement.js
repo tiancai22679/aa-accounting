@@ -132,17 +132,26 @@ router.get('/:groupId', (req, res) => {
     `, [groupId]);
 
     // 统计摘要
-    const totalExpense = allSplits.length > 0 ? members.reduce((sum, m) => {
-      if (balances[m.user_id]) return sum + balances[m.user_id].paid;
-      return sum;
-    }, 0) : 0;
-
-    // 计算每个成员的应结算金额
-    const processedExpenseIds = new Set();
     const total = members.reduce((sum, m) => {
       if (balances[m.user_id]) return sum + balances[m.user_id].paid;
       return sum;
     }, 0);
+
+    // 消费分类统计（按金额降序）
+    const categoryStats = db.all(`
+      SELECT c.id, c.name, c.icon,
+        COUNT(e.id) as count,
+        SUM(e.amount) as total
+      FROM expenses e
+      LEFT JOIN categories c ON e.category_id = c.id
+      WHERE e.group_id = ?
+      GROUP BY c.id, c.name, c.icon
+      ORDER BY total DESC
+    `, [groupId]).map(cat => ({
+      ...cat,
+      total: Math.round(cat.total * 100) / 100,
+      percentage: total > 0 ? Math.round((cat.total / total) * 1000) / 10 : 0
+    }));
 
     res.json({
       code: 0,
@@ -157,7 +166,8 @@ router.get('/:groupId', (req, res) => {
           balance: Math.round(b.balance * 100) / 100
         })),
         settlements,
-        history
+        history,
+        categoryStats
       }
     });
   } catch (err) {
