@@ -45,7 +45,8 @@ router.post('/register', (req, res) => {
           id: user.id,
           username: user.username,
           nickname: user.nickname,
-          avatarUrl: user.avatar_url
+          avatarUrl: user.avatar_url,
+          role: user.role || 'user'
         }
       }
     });
@@ -88,7 +89,8 @@ router.post('/login', (req, res) => {
           id: user.id,
           username: user.username,
           nickname: user.nickname,
-          avatarUrl: user.avatar_url
+          avatarUrl: user.avatar_url,
+          role: user.role || 'user'
         }
       }
     });
@@ -109,7 +111,8 @@ router.get('/profile', require('../middleware/auth').authMiddleware, (req, res) 
       id: req.user.id,
       username: req.user.username,
       nickname: req.user.nickname,
-      avatarUrl: req.user.avatar_url
+      avatarUrl: req.user.avatar_url,
+      role: req.user.role || 'user'
     }
   });
 });

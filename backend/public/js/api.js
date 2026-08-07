@@ -130,5 +130,18 @@ const API = {
 
   confirmSettlement(groupId, data) {
     return this.request('POST', '/settlement/' + groupId + '/confirm', data);
+  },
+
+  // === Admin ===
+  adminGetAllGroups() {
+    return this.request('GET', '/admin/groups');
+  },
+
+  adminGetGroupDetail(groupId) {
+    return this.request('GET', '/admin/groups/' + groupId);
+  },
+
+  adminDeleteGroup(groupId) {
+    return this.request('DELETE', '/admin/groups/' + groupId);
   }
 };

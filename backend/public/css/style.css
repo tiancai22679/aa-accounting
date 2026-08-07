@@ -361,3 +361,21 @@ input, select, button { font-family: inherit; font-size: 15px; }
   .page-shell { max-width: 100%; }
   .bottom-bar { max-width: 100%; }
 }
+
+/* === Admin Panel === */
+.btn-admin-entry { margin-left: auto; color: var(--warning); border-color: var(--warning); }
+.admin-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.admin-summary .summary-stat { flex: 1 1 calc(50% - 8px); min-width: 120px; padding: 16px; }
+.admin-group-list { margin-bottom: 16px; }
+.admin-group-card {
+  padding: 14px 16px; background: var(--card); border-radius: 10px;
+  margin-bottom: 8px; box-shadow: var(--shadow);
+}
+.admin-group-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.admin-group-info { flex: 1; min-width: 0; }
+.admin-group-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.admin-group-meta { font-size: 12px; color: var(--text-light); }
+.admin-hint {
+  font-size: 12px; color: var(--text-light); text-align: center;
+  padding: 16px; line-height: 1.6;
+}

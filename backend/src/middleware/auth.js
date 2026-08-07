@@ -26,4 +26,12 @@ function authMiddleware(req, res, next) {
   }
 }
 
-module.exports = { authMiddleware };
+// 超级管理员中间件：需要先通过 authMiddleware，再检查 role
+function adminMiddleware(req, res, next) {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ code: 403, message: '无管理员权限' });
+  }
+  next();
+}
+
+module.exports = { authMiddleware, adminMiddleware };

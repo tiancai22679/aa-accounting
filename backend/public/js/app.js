@@ -23,6 +23,14 @@ var App = {
 
   async _tryEnterDashboard() {
     try {
+      // 刷新用户信息，确保 role 等字段最新
+      try {
+        var profile = await API.getProfile();
+        if (profile && profile.id) {
+          this.user = profile;
+          localStorage.setItem('user', JSON.stringify(profile));
+        }
+      } catch (e) {}
       await API.getGroups();
       this.renderDashboard();
     } catch (err) {
@@ -156,10 +164,14 @@ var App = {
           }).join('')
         : '<div class="empty-state"><div class="empty-icon">📋</div><p>还没有账本，创建一个吧</p></div>';
 
+      var isAdmin = (this.user && this.user.role === 'admin');
+      var adminBtn = isAdmin ? '<button id="btn-admin-panel" class="btn btn-outline btn-admin-entry">🔧 管理后台</button>' : '';
+
       $('#page-content').innerHTML =
         '<div class="dashboard-actions">' +
           '<button id="btn-create-group" class="btn btn-primary">+ 创建账本</button>' +
           '<button id="btn-join-group" class="btn btn-outline">加入账本</button>' +
+          adminBtn +
         '</div>' +
         '<div class="section-title">账本列表</div>' +
         '<div class="group-list">' + groupCards + '</div>' +
@@ -167,6 +179,9 @@ var App = {
 
       $('#btn-create-group').onclick = function() { self._showCreateGroupModal(); };
       $('#btn-join-group').onclick = function() { self._showJoinGroupModal(); };
+      if (isAdmin) {
+        $('#btn-admin-panel').onclick = function() { self.renderAdminPanel(); };
+      }
 
       var cards = document.querySelectorAll('.group-card');
       for (var i = 0; i < cards.length; i++) {
@@ -616,6 +631,76 @@ var App = {
     }
   },
 
+  // ==================== ADMIN ====================
+  async renderAdminPanel() {
+    this.currentView = 'admin';
+    var self = this;
+    this._renderShell('管理后台', false, false);
+
+    try {
+      var groups = await API.adminGetAllGroups();
+      var totalGroups = groups.length;
+      var settledGroups = groups.filter(function(g) { return g.is_fully_settled; }).length;
+      var totalExpenses = groups.reduce(function(sum, g) { return sum + (g.expense_count || 0); }, 0);
+      var totalAmount = groups.reduce(function(sum, g) { return sum + (g.total_amount || 0); }, 0);
+
+      var groupCards = groups.length > 0
+        ? groups.map(function(g) {
+            var allSettled = g.is_fully_settled;
+            var settledBadge = allSettled ? '<span class="badge-settled">✅ 全员已结算</span>' :
+              (g.settled_count > 0 ? '<span class="badge-partial">' + g.settled_count + '/' + g.member_count + ' 已结算</span>' : '<span class="badge-partial">未结算</span>');
+            var deleteBtn = allSettled
+              ? '<button class="btn btn-sm btn-danger admin-delete-btn" data-gid="' + g.id + '" data-gname="' + self.escape(g.name) + '">🗑️ 清理</button>'
+              : '';
+            return '<div class="card admin-group-card">' +
+              '<div class="admin-group-header">' +
+                '<div class="admin-group-info">' +
+                  '<h3 class="admin-group-name">' + self.escape(g.name) + settledBadge + '</h3>' +
+                  '<p class="admin-group-meta">创建者: ' + self.escape(g.creator_name || g.creator_username || '未知') +
+                    ' · ' + (g.member_count || 0) + '人 · ' + (g.expense_count || 0) + '笔 · ¥' + Number(g.total_amount || 0).toFixed(2) + '</p>' +
+                '</div>' +
+                deleteBtn +
+              '</div></div>';
+          }).join('')
+        : '<div class="empty-state"><div class="empty-icon">📋</div><p>系统中暂无账本</p></div>';
+
+      $('#page-content').innerHTML =
+        '<div class="admin-summary">' +
+          '<div class="summary-stat"><div class="summary-value">' + totalGroups + '</div><div class="summary-label">账本总数</div></div>' +
+          '<div class="summary-stat"><div class="summary-value">' + settledGroups + '</div><div class="summary-label">已结算可清理</div></div>' +
+          '<div class="summary-stat"><div class="summary-value">' + totalExpenses + '</div><div class="summary-label">账单总笔数</div></div>' +
+          '<div class="summary-stat"><div class="summary-value">¥' + totalAmount.toFixed(2) + '</div><div class="summary-label">总金额</div></div>' +
+        '</div>' +
+        '<div class="section-title">所有账本</div>' +
+        '<div class="admin-group-list">' + groupCards + '</div>' +
+        '<div class="admin-hint">⚠️ 管理员仅可删除全员已结算的账本，用于清理历史数据</div>';
+
+      // 绑定删除按钮
+      var delBtns = document.querySelectorAll('.admin-delete-btn');
+      for (var i = 0; i < delBtns.length; i++) {
+        delBtns[i].onclick = async function() {
+          var gid = this.getAttribute('data-gid');
+          var gname = this.getAttribute('data-gname');
+          if (!confirm('确定要清理已结算的账本「' + gname + '」吗？\n此操作将永久删除该账本的所有数据（账单、成员、结算记录），不可恢复！')) return;
+          this.disabled = true;
+          this.textContent = '清理中...';
+          try {
+            await API.adminDeleteGroup(gid);
+            self.showToast('账本「' + gname + '」已清理');
+            self.renderAdminPanel();
+          } catch (err) {
+            self.showToast('清理失败: ' + err.message, 'error');
+            this.disabled = false;
+            this.textContent = '🗑️ 清理';
+          }
+        };
+      }
+    } catch (err) {
+      if (this._handleAuthError(err)) return;
+      $('#page-content').innerHTML = '<div class="error-state"><p>加载失败: ' + self.escape(err.message) + '</p><button class="btn btn-outline" onclick="App.renderDashboard()">返回</button></div>';
+    }
+  },
+
   // ==================== SHELL ====================
   _renderShell(title, isDashboard, showBottomBar) {
     var backHtml = isDashboard
@@ -645,6 +730,8 @@ var App = {
       $('#btn-back').onclick = function() {
         if (self.currentView === 'addExpense' || self.currentView === 'settlement' || self.currentView === 'expenseDetail') {
           self.renderGroup(self.currentGroupId);
+        } else if (self.currentView === 'admin') {
+          self.renderDashboard();
         } else {
           self.renderDashboard();
         }

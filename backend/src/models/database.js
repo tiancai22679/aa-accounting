@@ -265,6 +265,17 @@ async function initDB() {
   try {
     dbInstance.run('ALTER TABLE group_members ADD COLUMN settled_at DATETIME');
   } catch (e) {}
+  // 迁移：users 表加 role 字段（超级管理员）
+  try {
+    dbInstance.run("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'");
+  } catch (e) {}
+  // 迁移：如果没有 admin 用户，将最早注册的用户设为 admin
+  try {
+    const adminCount = dbInstance.get("SELECT COUNT(*) as cnt FROM users WHERE role = 'admin'");
+    if (adminCount.cnt === 0) {
+      dbInstance.run("UPDATE users SET role = 'admin' WHERE id = (SELECT MIN(id) FROM users)");
+    }
+  } catch (e) {}
 
   // 初始化默认类别
   const countRow = dbInstance.get('SELECT COUNT(*) as cnt FROM categories');

@@ -9,6 +9,7 @@ const groupRoutes = require('./src/routes/groups');
 const expenseRoutes = require('./src/routes/expenses');
 const settlementRoutes = require('./src/routes/settlement');
 const userRoutes = require('./src/routes/users');
+const adminRoutes = require('./src/routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -32,6 +33,7 @@ async function start() {
   app.use('/api/expenses', expenseRoutes);
   app.use('/api/settlement', settlementRoutes);
   app.use('/api/users', userRoutes);
+  app.use('/api/admin', adminRoutes);
 
   // 健康检查
   app.get('/api/health', (req, res) => {
