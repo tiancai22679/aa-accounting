@@ -21,6 +21,15 @@ var App = {
     }
   },
 
+  // 本地日期 YYYY-MM-DD（避免 toISOString 的 UTC 时区偏差）
+  getLocalDateStr(date) {
+    var d = date || new Date();
+    var y = d.getFullYear();
+    var m = ('0' + (d.getMonth() + 1)).slice(-2);
+    var day = ('0' + d.getDate()).slice(-2);
+    return y + '-' + m + '-' + day;
+  },
+
   async _tryEnterDashboard() {
     try {
       // 刷新用户信息，确保 role 等字段最新
@@ -314,8 +323,8 @@ var App = {
       return '<div class="empty-state"><div class="empty-icon">📝</div><p>还没有账单，点击下方按钮添加</p></div>';
     }
     var self = this;
-    var todayStr = new Date().toISOString().slice(0, 10);
-    var yesterdayStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    var todayStr = self.getLocalDateStr();
+    var yesterdayStr = self.getLocalDateStr(new Date(Date.now() - 86400000));
     var parts = [];
     var lastDate = null;
     for (var i = 0; i < list.length; i++) {
@@ -412,7 +421,7 @@ var App = {
         return '<option value="' + c.id + '" ' + (c.id === expense.category_id ? 'selected' : '') + '>' + c.icon + ' ' + c.name + '</option>';
       }).join('');
 
-      var today = new Date().toISOString().slice(0, 10);
+      var today = self.getLocalDateStr();
 
       $('#page-content').innerHTML =
         (isCreator ? '' : '<div class="permission-note">⚠️ 仅账单创建者可编辑，你只能查看</div>') +
@@ -521,7 +530,7 @@ var App = {
       return '<option value="' + c.id + '">' + c.icon + ' ' + c.name + '</option>';
     }).join('');
 
-    var today = new Date().toISOString().slice(0, 10);
+    var today = self.getLocalDateStr();
 
     $('#page-content').innerHTML =
       '<div class="expense-form">' +
