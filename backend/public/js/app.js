@@ -205,45 +205,16 @@ var App = {
 
     try {
       var detail = await API.getGroupDetail(groupId);
-      var expenses = await API.getExpenses(groupId);
       var members = detail.members || [];
       this._cachedMembers = members;
       this._currentDetail = detail; // 缓存详情用于判断权限
 
-      var isOwner = detail.created_by === this.user.id;
+      // 初始化账单分页状态
+      this.expensePage = 1;
+      this.expensePageSize = 20;
+      this.expenseGroupId = groupId;
 
-      // 按日期分组渲染账单卡片
-      var todayStr = new Date().toISOString().slice(0, 10);
-      var yesterdayStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-      var expenseParts = [];
-      if (expenses && expenses.list && expenses.list.length > 0) {
-        var lastDate = null;
-        for (var i = 0; i < expenses.list.length; i++) {
-          var e = expenses.list[i];
-          if (e.expense_date !== lastDate) {
-            var dateLabel = e.expense_date === todayStr ? '今天' : (e.expense_date === yesterdayStr ? '昨天' : e.expense_date);
-            expenseParts.push('<div class="date-header">' + dateLabel + '</div>');
-            lastDate = e.expense_date;
-          }
-          var splits = (e.splits || []).map(function(s) {
-            return '<span class="split-tag">' + self.escape(s.nickname || '?') + ' ¥' + Number(s.share_amount).toFixed(2) + '</span>';
-          }).join(' ');
-          expenseParts.push('<div class="card expense-card" data-eid="' + e.id + '">' +
-            '<div class="expense-left">' +
-              '<span class="expense-icon">' + self.escape(e.category_icon || '💰') + '</span>' +
-              '<div class="expense-info">' +
-                '<div class="expense-desc">' + self.escape(e.description || '无描述') + '</div>' +
-                '<div class="expense-meta"><span>' + e.expense_date + '</span><span>' + self.escape(e.payer_name || '?') + ' 支付</span></div>' +
-                '<div class="expense-splits">' + splits + '</div>' +
-              '</div>' +
-            '</div>' +
-            '<div class="expense-right">' +
-              '<span class="expense-amount">¥' + Number(e.amount).toFixed(2) + '</span>' +
-              '<span class="expense-category">' + self.escape(e.category_name || '') + '</span>' +
-            '</div></div>');
-        }
-      }
-      var expenseHtml = expenseParts.length > 0 ? expenseParts.join('') : '<div class="empty-state"><div class="empty-icon">📝</div><p>还没有账单，点击下方按钮添加</p></div>';
+      var isOwner = detail.created_by === this.user.id;
 
       // 账本名称区域：创建人可见编辑按钮
       var nameSection = isOwner
@@ -271,7 +242,8 @@ var App = {
           (isOwner ? '<button id="btn-delete-group" class="btn btn-outline btn-danger">🗑️ 删除账本</button>' : '') +
         '</div>' +
         '<div class="section-title">账单记录</div>' +
-        '<div class="expense-list">' + expenseHtml + '</div>';
+        '<div class="expense-list" id="expense-list"></div>' +
+        '<div class="expense-pagination" id="expense-pagination"></div>';
 
       $('#btn-add-expense').onclick = function() { self.renderAddExpense(groupId, self._cachedMembers); };
       $('#btn-settlement').onclick = function() { self.renderSettlement(groupId); };
@@ -295,17 +267,119 @@ var App = {
         };
       }
 
+      // 渲染账单列表（含分页）
+      self._renderExpenseList();
+    } catch (err) {
+      if (this._handleAuthError(err)) return;
+      $('#page-content').innerHTML = '<div class="error-state"><p>加载失败: ' + self.escape(err.message) + '</p><button class="btn btn-outline" onclick="App.renderLogin()">重新登录</button></div>';
+    }
+  },
+
+  // 渲染账单列表（第一页由 renderGroup 调用，翻页时独立调用）
+  async _renderExpenseList() {
+    var self = this;
+    var groupId = this.expenseGroupId;
+    var listEl = document.getElementById('expense-list');
+    var pageEl = document.getElementById('expense-pagination');
+    if (!listEl || !pageEl) return;
+
+    listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><p>加载中...</p></div>';
+
+    try {
+      var data = await API.getExpenses(groupId, this.expensePage, this.expensePageSize);
+      this.expenseTotal = data.total || 0;
+      var list = (data.list || []);
+
+      var html = self._buildExpenseListHtml(list);
+      listEl.innerHTML = html;
+
       // 绑定账单卡片点击事件
-      var expenseCards = document.querySelectorAll('.expense-card');
-      for (var i = 0; i < expenseCards.length; i++) {
-        expenseCards[i].onclick = function() {
+      var cards = listEl.querySelectorAll('.expense-card');
+      for (var i = 0; i < cards.length; i++) {
+        cards[i].onclick = function() {
           var eid = this.getAttribute('data-eid');
           if (eid) self.renderExpenseDetail(eid, groupId);
         };
       }
+
+      self._renderExpensePagination();
     } catch (err) {
-      if (this._handleAuthError(err)) return;
-      $('#page-content').innerHTML = '<div class="error-state"><p>加载失败: ' + self.escape(err.message) + '</p><button class="btn btn-outline" onclick="App.renderLogin()">重新登录</button></div>';
+      listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><p>账单加载失败: ' + self.escape(err.message) + '</p></div>';
+    }
+  },
+
+  // 按日期分组构建账单卡片 HTML
+  _buildExpenseListHtml(list) {
+    if (!list || list.length === 0) {
+      return '<div class="empty-state"><div class="empty-icon">📝</div><p>还没有账单，点击下方按钮添加</p></div>';
+    }
+    var self = this;
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var yesterdayStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    var parts = [];
+    var lastDate = null;
+    for (var i = 0; i < list.length; i++) {
+      var e = list[i];
+      if (e.expense_date !== lastDate) {
+        var dateLabel = e.expense_date === todayStr ? '今天' : (e.expense_date === yesterdayStr ? '昨天' : e.expense_date);
+        parts.push('<div class="date-header">' + dateLabel + '</div>');
+        lastDate = e.expense_date;
+      }
+      var splits = (e.splits || []).map(function(s) {
+        return '<span class="split-tag">' + self.escape(s.nickname || '?') + ' ¥' + Number(s.share_amount).toFixed(2) + '</span>';
+      }).join(' ');
+      parts.push('<div class="card expense-card" data-eid="' + e.id + '">' +
+        '<div class="expense-left">' +
+          '<span class="expense-icon">' + self.escape(e.category_icon || '💰') + '</span>' +
+          '<div class="expense-info">' +
+            '<div class="expense-desc">' + self.escape(e.description || '无描述') + '</div>' +
+            '<div class="expense-meta"><span>' + e.expense_date + '</span><span>' + self.escape(e.payer_name || '?') + ' 支付</span></div>' +
+            '<div class="expense-splits">' + splits + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="expense-right">' +
+          '<span class="expense-amount">¥' + Number(e.amount).toFixed(2) + '</span>' +
+          '<span class="expense-category">' + self.escape(e.category_name || '') + '</span>' +
+        '</div></div>');
+    }
+    return parts.join('');
+  },
+
+  // 渲染分页控件
+  _renderExpensePagination() {
+    var pageEl = document.getElementById('expense-pagination');
+    if (!pageEl) return;
+    var total = this.expenseTotal || 0;
+    var pageSize = this.expensePageSize || 20;
+    var totalPages = Math.max(1, Math.ceil(total / pageSize));
+    var page = this.expensePage || 1;
+
+    if (total <= pageSize) {
+      pageEl.innerHTML = '<div class="pagination-info">共 ' + total + ' 条记录</div>';
+      return;
+    }
+
+    var prevDisabled = page <= 1 ? ' disabled' : '';
+    var nextDisabled = page >= totalPages ? ' disabled' : '';
+    pageEl.innerHTML =
+      '<div class="pagination-bar">' +
+        '<button class="btn btn-outline btn-sm" id="btn-exp-prev"' + prevDisabled + '>← 上一页</button>' +
+        '<span class="pagination-info">第 ' + page + ' / ' + totalPages + ' 页 · 共 ' + total + ' 条</span>' +
+        '<button class="btn btn-outline btn-sm" id="btn-exp-next"' + nextDisabled + '>下一页 →</button>' +
+      '</div>';
+
+    var self = this;
+    var prevBtn = document.getElementById('btn-exp-prev');
+    var nextBtn = document.getElementById('btn-exp-next');
+    if (prevBtn && !prevBtn.disabled) {
+      prevBtn.onclick = function() {
+        if (self.expensePage > 1) { self.expensePage--; self._renderExpenseList(); }
+      };
+    }
+    if (nextBtn && !nextBtn.disabled) {
+      nextBtn.onclick = function() {
+        if (self.expensePage < totalPages) { self.expensePage++; self._renderExpenseList(); }
+      };
     }
   },
 
