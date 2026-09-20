@@ -29,12 +29,17 @@ node server.js
 
 ## Docker 部署
 
+从 Gitee 拉取最新代码并重新构建（内部存储小，构建后务必清理旧镜像）：
+
 ```bash
 cd backend
-docker compose up -d
+git pull https://gitee.com/tiancai22679/aa-accounting.git main
+docker compose down
+docker compose up -d --build
+docker image prune -f
 ```
 
-详见 [Docker 部署说明](#docker-部署)
+> `docker image prune -f` 用于删除重建后残留的旧镜像，释放内部存储空间，建议每次部署都执行。
 
 ## 目录结构
 
