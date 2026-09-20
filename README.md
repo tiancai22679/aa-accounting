@@ -59,3 +59,19 @@ aa-accounting/
 ## 数据持久化
 
 数据库文件存储在 `backend/data/accounting.db`，请定期备份该文件。
+
+## 代码同步
+
+本仓库通过 SSH 密钥自动同步到 Gitee 与 GitHub。在本工作区执行 `git commit` 后，`.git/hooks/post-commit` 钩子会自动执行：
+
+```bash
+git push gitee main
+git push github main
+```
+
+无需手动推送、无需令牌。如需在其它环境启用，按以下步骤绑定：
+
+1. 生成 SSH 密钥：`ssh-keygen -t ed25519 -C "备注"`
+2. 将 `~/.ssh/id_ed25519.pub` 内容分别添加到 Gitee 和 GitHub 的 SSH 公钥设置
+3. 将远端地址改为 SSH 格式（`git@gitee.com:用户名/仓库.git`）
+4. 复制本仓库的 `.git/hooks/post-commit` 钩子到对应仓库的 `.git/hooks/` 目录
