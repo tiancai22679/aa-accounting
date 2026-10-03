@@ -146,5 +146,36 @@ const API = {
 
   adminDeleteGroup(groupId) {
     return this.request('DELETE', '/admin/groups/' + groupId);
+  },
+
+  // === Admin - Backup (WebDAV) ===
+  adminGetBackupConfig() {
+    return this.request('GET', '/admin/backup/config');
+  },
+
+  adminSaveBackupConfig(data) {
+    return this.request('POST', '/admin/backup/config', data);
+  },
+
+  adminBackupNow() {
+    return this.request('POST', '/admin/backup/now');
+  },
+
+  // === User (self) ===
+  changePassword(oldPassword, newPassword) {
+    return this.request('POST', '/users/change-password', { oldPassword, newPassword });
+  },
+
+  // === Admin - User Management ===
+  adminGetUsers() {
+    return this.request('GET', '/admin/users');
+  },
+
+  adminResetUserPassword(userId) {
+    return this.request('POST', '/admin/users/' + userId + '/reset-password');
+  },
+
+  adminDeleteUser(userId) {
+    return this.request('DELETE', '/admin/users/' + userId);
   }
 };

@@ -277,6 +277,11 @@ async function initDB() {
     }
   } catch (e) {}
 
+  // 迁移：系统设置表（key-value）
+  try {
+    dbInstance.run('CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)');
+  } catch (e) {}
+
   // 初始化默认类别
   const countRow = dbInstance.get('SELECT COUNT(*) as cnt FROM categories');
   if (countRow.cnt === 0) {
@@ -316,4 +321,30 @@ function getDB() {
   return dbInstance;
 }
 
-module.exports = { initDB, getDB, hashPassword, verifyPassword, generateToken };
+// 系统设置读写（key-value 存储在 settings 表）
+function getSetting(key, defaultVal) {
+  try {
+    const db = getDB();
+    const row = db.get('SELECT value FROM settings WHERE key = ?', [key]);
+    return row ? row.value : (defaultVal !== undefined ? defaultVal : null);
+  } catch (e) {
+    return defaultVal !== undefined ? defaultVal : null;
+  }
+}
+
+function setSetting(key, value) {
+  const db = getDB();
+  db.run(
+    'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+    [key, value]
+  );
+  try { db.save(); } catch (e) {}
+}
+
+// 导出当前内存数据库的二进制（用于备份）
+function exportDB() {
+  if (!dbInstance) throw new Error('数据库未初始化');
+  return Buffer.from(dbInstance._db.export());
+}
+
+module.exports = { initDB, getDB, hashPassword, verifyPassword, generateToken, getSetting, setSetting, exportDB };

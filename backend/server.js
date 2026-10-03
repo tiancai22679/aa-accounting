@@ -10,6 +10,7 @@ const expenseRoutes = require('./src/routes/expenses');
 const settlementRoutes = require('./src/routes/settlement');
 const userRoutes = require('./src/routes/users');
 const adminRoutes = require('./src/routes/admin');
+const backupLib = require('./src/lib/backup');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,6 +24,9 @@ app.use(express.urlencoded({ extended: true }));
 async function start() {
   // 初始化数据库
   await initDB();
+
+  // 启动每日定时备份调度（配置来自 settings 表，默认凌晨 2 点）
+  backupLib.startScheduler();
 
   // 静态文件服务 - 网页版前端
   app.use(express.static(path.join(__dirname, 'public')));

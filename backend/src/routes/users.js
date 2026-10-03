@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getDB } = require('../models/database');
+const { getDB, hashPassword, verifyPassword } = require('../models/database');
 const { authMiddleware } = require('../middleware/auth');
 
 router.use(authMiddleware);
@@ -60,6 +60,43 @@ router.get('/search', (req, res) => {
   } catch (err) {
     console.error('搜索用户失败:', err);
     res.status(500).json({ code: 500, message: '搜索失败' });
+  }
+});
+
+/**
+ * 修改自己的密码
+ * POST /api/users/change-password
+ * Body: { oldPassword, newPassword }
+ */
+router.post('/change-password', (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body || {};
+    const db = getDB();
+
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ code: 400, message: '原密码和新密码都不能为空' });
+    }
+    if (newPassword.length < 4) {
+      return res.status(400).json({ code: 400, message: '新密码至少4位' });
+    }
+
+    // 校验原密码
+    const user = db.get('SELECT * FROM users WHERE id = ?', [req.user.id]);
+    if (!user || !verifyPassword(oldPassword, user.password_hash)) {
+      return res.status(400).json({ code: 400, message: '原密码不正确' });
+    }
+
+    const newHash = hashPassword(newPassword);
+    db.run(
+      'UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [newHash, req.user.id]
+    );
+    try { db.save(); } catch (e) {}
+
+    res.json({ code: 0, message: '密码修改成功' });
+  } catch (err) {
+    console.error('修改密码失败:', err);
+    res.status(500).json({ code: 500, message: '修改密码失败' });
   }
 });
 

@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { getDB, hashPassword, verifyPassword, generateToken } = require('../models/database');
 
+// 默认密码 1234 的哈希值，用于强制改密提示
+const DEFAULT_PASSWORD_HASH = hashPassword('1234');
+
 /**
  * 注册
  * POST /api/auth/register
@@ -80,11 +83,15 @@ router.post('/login', (req, res) => {
     const token = generateToken();
     db.run('UPDATE users SET session_token = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [token, user.id]);
 
+    // 是否仍在使用默认密码（1234），用于前端强制改密提示
+    const mustChangePassword = user.password_hash === DEFAULT_PASSWORD_HASH;
+
     res.json({
       code: 0,
       message: '登录成功',
       data: {
         token: token,
+        mustChangePassword: mustChangePassword,
         user: {
           id: user.id,
           username: user.username,
@@ -112,7 +119,8 @@ router.get('/profile', require('../middleware/auth').authMiddleware, (req, res) 
       username: req.user.username,
       nickname: req.user.nickname,
       avatarUrl: req.user.avatar_url,
-      role: req.user.role || 'user'
+      role: req.user.role || 'user',
+      mustChangePassword: req.user.password_hash === DEFAULT_PASSWORD_HASH
     }
   });
 });

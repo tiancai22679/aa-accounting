@@ -40,6 +40,11 @@ var App = {
           localStorage.setItem('user', JSON.stringify(profile));
         }
       } catch (e) {}
+      // 仍在使用默认密码：强制改密后才会进入仪表盘
+      if (profile && profile.mustChangePassword) {
+        this._showChangePasswordModal(true);
+        return;
+      }
       await API.getGroups();
       this.renderDashboard();
     } catch (err) {
@@ -89,6 +94,11 @@ var App = {
       try {
         var data = await API.login(username, password);
         self.user = data.user;
+        // 使用默认密码登录：强制要求修改密码，不进入仪表盘
+        if (data.mustChangePassword) {
+          self._showChangePasswordModal(true);
+          return;
+        }
         self.renderDashboard();
       } catch (err) {
         self.showToast(err.message || '登录失败', 'error');
@@ -180,6 +190,7 @@ var App = {
         '<div class="dashboard-actions">' +
           '<button id="btn-create-group" class="btn btn-primary">+ 创建账本</button>' +
           '<button id="btn-join-group" class="btn btn-outline">加入账本</button>' +
+          '<button id="btn-change-password" class="btn btn-outline">🔑 修改密码</button>' +
           adminBtn +
         '</div>' +
         '<div class="section-title">账本列表</div>' +
@@ -188,6 +199,7 @@ var App = {
 
       $('#btn-create-group').onclick = function() { self._showCreateGroupModal(); };
       $('#btn-join-group').onclick = function() { self._showJoinGroupModal(); };
+      $('#btn-change-password').onclick = function() { self._showChangePasswordModal(false); };
       if (isAdmin) {
         $('#btn-admin-panel').onclick = function() { self.renderAdminPanel(); };
       }
@@ -722,6 +734,10 @@ var App = {
 
     try {
       var groups = await API.adminGetAllGroups();
+      var bkCfg = {};
+      try { bkCfg = await API.adminGetBackupConfig() || {}; } catch (e) { bkCfg = {}; }
+      var users = [];
+      try { users = await API.adminGetUsers() || []; } catch (e) { users = []; }
       var totalGroups = groups.length;
       var settledGroups = groups.filter(function(g) { return g.is_fully_settled; }).length;
       var totalExpenses = groups.reduce(function(sum, g) { return sum + (g.expense_count || 0); }, 0);
@@ -747,16 +763,51 @@ var App = {
           }).join('')
         : '<div class="empty-state"><div class="empty-icon">📋</div><p>系统中暂无账本</p></div>';
 
+      var backupHtml = self._buildBackupConfigHtml(bkCfg);
+
+      var usersHtml = self._buildUserListHtml(users);
+
       $('#page-content').innerHTML =
-        '<div class="admin-summary">' +
-          '<div class="summary-stat"><div class="summary-value">' + totalGroups + '</div><div class="summary-label">账本总数</div></div>' +
-          '<div class="summary-stat"><div class="summary-value">' + settledGroups + '</div><div class="summary-label">已结算可清理</div></div>' +
-          '<div class="summary-stat"><div class="summary-value">' + totalExpenses + '</div><div class="summary-label">账单总笔数</div></div>' +
-          '<div class="summary-stat"><div class="summary-value">¥' + totalAmount.toFixed(2) + '</div><div class="summary-label">总金额</div></div>' +
+        '<div class="admin-tabs">' +
+          '<button class="admin-tab active" data-tab="groups">账本管理</button>' +
+          '<button class="admin-tab" data-tab="backup">数据备份</button>' +
+          '<button class="admin-tab" data-tab="users">用户管理</button>' +
         '</div>' +
-        '<div class="section-title">所有账本</div>' +
-        '<div class="admin-group-list">' + groupCards + '</div>' +
-        '<div class="admin-hint">⚠️ 管理员仅可删除全员已结算的账本，用于清理历史数据</div>';
+        '<div id="admin-tab-groups" class="admin-tab-panel" data-panel="groups">' +
+          '<div class="admin-summary">' +
+            '<div class="summary-stat"><div class="summary-value">' + totalGroups + '</div><div class="summary-label">账本总数</div></div>' +
+            '<div class="summary-stat"><div class="summary-value">' + settledGroups + '</div><div class="summary-label">已结算可清理</div></div>' +
+            '<div class="summary-stat"><div class="summary-value">' + totalExpenses + '</div><div class="summary-label">账单总笔数</div></div>' +
+            '<div class="summary-stat"><div class="summary-value">¥' + totalAmount.toFixed(2) + '</div><div class="summary-label">总金额</div></div>' +
+          '</div>' +
+          '<div class="section-title">所有账本</div>' +
+          '<div class="admin-group-list">' + groupCards + '</div>' +
+          '<div class="admin-hint">⚠️ 管理员仅可删除全员已结算的账本，用于清理历史数据</div>' +
+        '</div>' +
+        '<div id="admin-tab-backup" class="admin-tab-panel hidden" data-panel="backup">' +
+          '<div class="section-title">WebDAV 备份设置</div>' +
+          backupHtml +
+        '</div>' +
+        '<div id="admin-tab-users" class="admin-tab-panel hidden" data-panel="users">' +
+          '<div class="section-title">用户列表（共 ' + (users.length || 0) + ' 人）</div>' +
+          usersHtml +
+        '</div>';
+
+      // Tab 切换（账本管理 / 数据备份 / 用户管理，通用逻辑）
+      var tabBtns = document.querySelectorAll('.admin-tab');
+      for (var ti = 0; ti < tabBtns.length; ti++) {
+        tabBtns[ti].onclick = function() {
+          var tab = this.getAttribute('data-tab');
+          var allTabs = document.querySelectorAll('.admin-tab');
+          for (var tk = 0; tk < allTabs.length; tk++) allTabs[tk].classList.remove('active');
+          this.classList.add('active');
+          var panels = document.querySelectorAll('.admin-tab-panel');
+          for (var pk = 0; pk < panels.length; pk++) {
+            var pname = panels[pk].getAttribute('data-panel');
+            panels[pk].classList.toggle('hidden', pname !== tab);
+          }
+        };
+      }
 
       // 绑定删除按钮
       var delBtns = document.querySelectorAll('.admin-delete-btn');
@@ -773,15 +824,165 @@ var App = {
             self.renderAdminPanel();
           } catch (err) {
             self.showToast('清理失败: ' + err.message, 'error');
-            this.disabled = false;
-            this.textContent = '🗑️ 清理';
+          this.disabled = false;
+          this.textContent = '🗑️ 清理';
           }
         };
       }
+
+      // 备份配置区事件绑定
+      var bkSaveBtn = document.getElementById('bk-save');
+      if (bkSaveBtn) {
+        bkSaveBtn.onclick = async function() {
+          var btn = this; btn.disabled = true; btn.textContent = '保存中...';
+          try {
+            var payload = {
+              enabled: document.getElementById('bk-enabled').checked,
+              url: document.getElementById('bk-url').value.trim(),
+              username: document.getElementById('bk-user').value.trim(),
+              remotePath: document.getElementById('bk-path').value.trim()
+            };
+            var pw = document.getElementById('bk-pass').value;
+            if (pw) payload.password = pw;
+            await API.adminSaveBackupConfig(payload);
+            self.showToast('备份配置已保存');
+            var cfg = await API.adminGetBackupConfig();
+            var stx = document.getElementById('bk-status');
+            if (stx) stx.textContent = '配置已保存' + (cfg && cfg.lastBackupAt ? (' · 上次备份: ' + cfg.lastBackupAt) : '');
+          } catch (err) {
+            self.showToast('保存失败: ' + err.message, 'error');
+          } finally {
+            btn.disabled = false; btn.textContent = '保存配置';
+          }
+        };
+      }
+      var bkNowBtn = document.getElementById('bk-now');
+      if (bkNowBtn) {
+        bkNowBtn.onclick = async function() {
+          var btn = this; btn.disabled = true; btn.textContent = '备份中...';
+          var stx = document.getElementById('bk-status');
+          try {
+            await API.adminBackupNow();
+            self.showToast('备份成功 ✅');
+            if (stx) stx.textContent = '上次备份: ' + new Date().toLocaleString() + ' · 成功';
+          } catch (err) {
+            self.showToast('备份失败: ' + err.message, 'error');
+            if (stx) stx.textContent = '备份失败: ' + err.message;
+          } finally {
+            btn.disabled = false; btn.textContent = '立即备份一次';
+          }
+        };
+      }
+
+      // 用户管理：重置密码 / 删除用户
+      var resetBtns = document.querySelectorAll('.user-reset-btn');
+      for (var ri = 0; ri < resetBtns.length; ri++) {
+        resetBtns[ri].onclick = async function() {
+          var uid = this.getAttribute('data-uid');
+          var uname = this.getAttribute('data-uname');
+          if (!confirm('确定要将用户「' + uname + '」的密码重置为默认密码 1234 吗？\n该用户下次登录会被要求修改密码。')) return;
+          this.disabled = true;
+          this.textContent = '重置中...';
+          try {
+            await API.adminResetUserPassword(uid);
+            self.showToast('已将「' + uname + '」密码重置为 1234');
+            self.renderAdminPanel();
+          } catch (err) {
+            self.showToast('重置失败: ' + err.message, 'error');
+            this.disabled = false;
+            this.textContent = '重置密码';
+          }
+        };
+      }
+      var delBtns = document.querySelectorAll('.user-delete-btn');
+      for (var di = 0; di < delBtns.length; di++) {
+        delBtns[di].onclick = async function() {
+          var uid = this.getAttribute('data-uid');
+          var uname = this.getAttribute('data-uname');
+          if (!confirm('确定要删除用户「' + uname + '」吗？\n将同时清理其成员关系、账单与结算记录，不可恢复！')) return;
+          this.disabled = true;
+          this.textContent = '删除中...';
+          try {
+            await API.adminDeleteUser(uid);
+            self.showToast('用户「' + uname + '」已删除');
+            self.renderAdminPanel();
+          } catch (err) {
+            self.showToast('删除失败: ' + err.message, 'error');
+            this.disabled = false;
+            this.textContent = '删除';
+          }
+        };
+      }
+
     } catch (err) {
       if (this._handleAuthError(err)) return;
       $('#page-content').innerHTML = '<div class="error-state"><p>加载失败: ' + self.escape(err.message) + '</p><button class="btn btn-outline" onclick="App.renderDashboard()">返回</button></div>';
     }
+  },
+
+  _buildBackupConfigHtml(bkCfg) {
+    bkCfg = bkCfg || {};
+    var self = this;
+    var esc = function(v) { return self.escape(v || '').replace(/"/g, '&quot;'); };
+    var enabled = bkCfg.enabled ? 'checked' : '';
+    var hour = bkCfg.hour || 2;
+    var statusText = (bkCfg.lastBackupAt
+      ? ('上次备份: ' + bkCfg.lastBackupAt + ' · ' + (bkCfg.lastBackupStatus || '未知'))
+      : '尚未执行过备份');
+    return '<div class="card backup-config-card">' +
+      '<div class="form-group backup-row">' +
+        '<label class="backup-switch"><input type="checkbox" id="bk-enabled" ' + enabled + ' /> <span>启用每日 ' + hour + ' 点自动备份</span></label>' +
+      '</div>' +
+      '<div class="form-group"><label>WebDAV 地址</label><input type="text" id="bk-url" placeholder="https://dav.example.com/dav/" value="' + esc(bkCfg.url) + '" /></div>' +
+      '<div class="form-group"><label>用户名</label><input type="text" id="bk-user" placeholder="WebDAV 账号" value="' + esc(bkCfg.username) + '" /></div>' +
+      '<div class="form-group"><label>密码' + (bkCfg.hasPassword ? '（已设置，留空则不改）' : '') + '</label><input type="password" id="bk-pass" placeholder="WebDAV 密码" autocomplete="new-password" /></div>' +
+      '<div class="form-group"><label>远程目录</label><input type="text" id="bk-path" placeholder="例如 aa-accounting/ （相对于上述地址，留空为根目录）" value="' + esc(bkCfg.remotePath) + '" /></div>' +
+      '<div class="backup-status" id="bk-status">' + self.escape(statusText) + '</div>' +
+      '<div class="form-actions backup-actions">' +
+        '<button id="bk-save" class="btn btn-primary">保存配置</button>' +
+        '<button id="bk-now" class="btn btn-outline">立即备份一次</button>' +
+      '</div>' +
+      '<div class="backup-tip">备份文件固定命名为 accounting.db，每次备份覆盖 WebDAV 上的旧文件（不按日期累积多份）。</div>' +
+    '</div>';
+  },
+
+  _buildUserListHtml(users) {
+    users = users || [];
+    var self = this;
+    if (users.length === 0) {
+      return '<div class="empty-state"><div class="empty-icon">👥</div><p>暂无用户</p></div>';
+    }
+    var esc = function(v) { return self.escape(v || ''); };
+    var rows = users.map(function(u) {
+      var isSelf = (self.user && self.user.id === u.id);
+      var roleBadge = u.role === 'admin'
+        ? '<span class="badge-admin">管理员</span>'
+        : '<span class="badge-user">普通用户</span>';
+      var defaultBadge = u.isDefaultPassword
+        ? '<span class="badge-warn">默认密码</span>' : '';
+      var delBtn = isSelf ? '' :
+        '<button class="btn btn-sm btn-danger user-delete-btn" data-uid="' + u.id + '" data-uname="' + esc(u.nickname || u.username) + '">删除</button>';
+      return '<div class="user-row">' +
+        '<div class="user-cell user-name">' + esc(u.nickname || u.username) +
+          ' <span class="user-username">@' + esc(u.username) + '</span></div>' +
+        '<div class="user-cell">' + roleBadge + defaultBadge + '</div>' +
+        '<div class="user-cell user-meta">' + (u.group_count || 0) + ' 个账本</div>' +
+        '<div class="user-cell user-actions">' +
+          '<button class="btn btn-sm btn-outline user-reset-btn" data-uid="' + u.id + '" data-uname="' + esc(u.nickname || u.username) + '">重置密码</button>' +
+          delBtn +
+        '</div>' +
+      '</div>';
+    }).join('');
+    return '<div class="user-list">' +
+      '<div class="user-row user-head">' +
+        '<div class="user-cell user-name">用户</div>' +
+        '<div class="user-cell">角色</div>' +
+        '<div class="user-cell user-meta">账本</div>' +
+        '<div class="user-cell user-actions">操作</div>' +
+      '</div>' +
+      rows +
+    '</div>' +
+    '<div class="admin-hint">⚠️ 重置密码会将其设为默认密码 1234，用户下次登录需重新修改；删除用户会一并清理其账本成员、账单与结算记录。</div>';
   },
 
   // ==================== SHELL ====================
@@ -957,6 +1158,91 @@ var App = {
         self.showToast('修改失败: ' + err.message, 'error');
       }
     };
+  },
+
+  // 修改密码弹窗
+  // forced=true 时（使用默认密码登录）为强制改密：不可关闭，仅要求设置新密码
+  _showChangePasswordModal(forced) {
+    var self = this;
+    forced = !!forced;
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'modal-overlay';
+
+    var oldField = forced ? '' :
+      '<div class="form-group"><label>原密码</label><input type="password" id="modal-old-pw" placeholder="输入当前密码" autocomplete="off" /></div>';
+
+    overlay.innerHTML = '<div class="modal">' +
+      '<h3>' + (forced ? '请修改默认密码' : '修改密码') + '</h3>' +
+      (forced ? '<p class="modal-tip">检测到您仍在使用默认密码 1234，为保障账户安全，请先设置新密码。</p>' : '') +
+      oldField +
+      '<div class="form-group"><label>新密码</label><input type="password" id="modal-new-pw" placeholder="至少4位" autocomplete="new-password" maxlength="32" /></div>' +
+      '<div class="form-group"><label>确认新密码</label><input type="password" id="modal-new-pw2" placeholder="再次输入新密码" autocomplete="new-password" maxlength="32" /></div>' +
+      '<div class="modal-actions">' +
+        (forced ? '' : '<button id="btn-modal-cancel" class="btn btn-outline">取消</button>') +
+        '<button id="btn-modal-confirm" class="btn btn-primary">保存</button>' +
+      '</div></div>';
+    document.body.appendChild(overlay);
+
+    setTimeout(function() {
+      var first = document.getElementById(forced ? 'modal-new-pw' : 'modal-old-pw');
+      if (first) first.focus();
+    }, 50);
+
+    // 强制改密不允许关闭
+    if (!forced) {
+      overlay.onclick = function(e) { if (e.target === overlay) self._hideModal(); };
+      document.getElementById('btn-modal-cancel').onclick = function() { self._hideModal(); };
+    }
+
+    document.getElementById('btn-modal-confirm').onclick = async function() {
+      var btn = this;
+      var oldPw = forced ? '1234' : (document.getElementById('modal-old-pw').value || '').trim();
+      var newPw = (document.getElementById('modal-new-pw').value || '').trim();
+      var newPw2 = (document.getElementById('modal-new-pw2').value || '').trim();
+
+      if (!forced && !oldPw) { self.showToast('请输入原密码', 'error'); return; }
+      if (!newPw) { self.showToast('请输入新密码', 'error'); return; }
+      if (newPw.length < 4) { self.showToast('新密码至少4位', 'error'); return; }
+      if (newPw !== newPw2) { self.showToast('两次输入的新密码不一致', 'error'); return; }
+
+      btn.disabled = true;
+      btn.textContent = '保存中...';
+      try {
+        await API.changePassword(oldPw, newPw);
+        overlay.remove();
+        self.showToast('密码修改成功！');
+        if (forced) {
+          self._afterPasswordChanged();
+        } else {
+          // 刷新本地用户资料中的 mustChangePassword 状态
+          try {
+            var profile = await API.getProfile();
+            if (profile && profile.id) {
+              self.user = profile;
+              localStorage.setItem('user', JSON.stringify(profile));
+            }
+          } catch (e) {}
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = '保存';
+        self.showToast('修改失败: ' + err.message, 'error');
+      }
+    };
+  },
+
+  // 强制改密成功后：刷新资料并进入仪表盘
+  async _afterPasswordChanged() {
+    var self = this;
+    try {
+      var profile = await API.getProfile();
+      if (profile && profile.id) {
+        this.user = profile;
+        localStorage.setItem('user', JSON.stringify(profile));
+      }
+    } catch (e) {}
+    this.renderDashboard();
   },
 
   _showEditGroupNameModal(groupId, currentName) {
