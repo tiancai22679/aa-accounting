@@ -30,6 +30,15 @@ var App = {
     return y + '-' + m + '-' + day;
   },
 
+  // 北京时间（UTC+8，无夏令时）格式化 "YYYY-MM-DD HH:MM:SS"
+  formatBeijing(date) {
+    var d = date || new Date();
+    var bj = new Date(d.getTime() + 8 * 3600 * 1000);
+    var p = function(n) { return String(n).padStart(2, '0'); };
+    return bj.getUTCFullYear() + '-' + p(bj.getUTCMonth() + 1) + '-' + p(bj.getUTCDate()) +
+      ' ' + p(bj.getUTCHours()) + ':' + p(bj.getUTCMinutes()) + ':' + p(bj.getUTCSeconds());
+  },
+
   async _tryEnterDashboard() {
     try {
       // 刷新用户信息，确保 role 等字段最新
@@ -864,7 +873,7 @@ var App = {
           try {
             await API.adminBackupNow();
             self.showToast('备份成功 ✅');
-            if (stx) stx.textContent = '上次备份: ' + new Date().toLocaleString() + ' · 成功';
+            if (stx) stx.textContent = '上次备份: ' + self.formatBeijing(new Date()) + ' · 成功';
           } catch (err) {
             self.showToast('备份失败: ' + err.message, 'error');
             if (stx) stx.textContent = '备份失败: ' + err.message;

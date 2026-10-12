@@ -38,8 +38,16 @@ function saveConfig(data) {
   if (data.hour !== undefined) setSetting(KEYS.hour, String(data.hour));
 }
 
+// 格式化为北京时间（UTC+8，中国不实行夏令时）的 "YYYY-MM-DD HH:MM:SS" 字符串
+function formatBeijing(date) {
+  const bj = new Date(date.getTime() + 8 * 3600 * 1000); // 偏移后其 UTC 字段即为北京时刻
+  const p = (n) => String(n).padStart(2, '0');
+  return bj.getUTCFullYear() + '-' + p(bj.getUTCMonth() + 1) + '-' + p(bj.getUTCDate()) +
+    ' ' + p(bj.getUTCHours()) + ':' + p(bj.getUTCMinutes()) + ':' + p(bj.getUTCSeconds());
+}
+
 function recordResult(success, message) {
-  setSetting(KEYS.lastAt, new Date().toISOString());
+  setSetting(KEYS.lastAt, formatBeijing(new Date()));
   setSetting(KEYS.lastStatus, (success ? '成功' : '失败') + (message ? ': ' + message : ''));
 }
 
