@@ -871,9 +871,11 @@ var App = {
           var btn = this; btn.disabled = true; btn.textContent = '备份中...';
           var stx = document.getElementById('bk-status');
           try {
-            await API.adminBackupNow();
+            var data = await API.adminBackupNow();
             self.showToast('备份成功 ✅');
-            if (stx) stx.textContent = '上次备份: ' + self.formatBeijing(new Date()) + ' · 成功';
+            // 用路由返回的服务端记录时间同步展示（与 GET 配置一致）
+            var syncedAt = (data && data.lastBackupAt) ? data.lastBackupAt : self.formatBeijing(new Date());
+            if (stx) stx.textContent = '上次备份: ' + syncedAt + ' · 成功';
           } catch (err) {
             self.showToast('备份失败: ' + err.message, 'error');
             if (stx) stx.textContent = '备份失败: ' + err.message;

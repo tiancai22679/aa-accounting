@@ -157,7 +157,8 @@ async function performBackup(force) {
   }
   if (!cfg.url) {
     recordResult(false, 'WebDAV 地址未配置');
-    return { success: false, error: 'WebDAV 地址未配置' };
+    const r = getConfig();
+    return { success: false, error: 'WebDAV 地址未配置', lastBackupAt: r.lastBackupAt, lastBackupStatus: r.lastBackupStatus };
   }
   try {
     const buf = exportDB();
@@ -168,17 +169,20 @@ async function performBackup(force) {
     const res = await webdavRequest('PUT', target, buf, auth);
     if (res.status >= 200 && res.status < 300) {
       recordResult(true, '已上传 ' + fname);
+      const r = getConfig();
       console.log('[备份] 成功上传至', target);
-      return { success: true, file: fname, target };
+      return { success: true, file: fname, target, lastBackupAt: r.lastBackupAt, lastBackupStatus: r.lastBackupStatus };
     } else {
       recordResult(false, 'HTTP ' + res.status);
+      const r = getConfig();
       console.error('[备份] 上传失败 HTTP', res.status, res.body);
-      return { success: false, error: 'HTTP ' + res.status, body: res.body };
+      return { success: false, error: 'HTTP ' + res.status, body: res.body, lastBackupAt: r.lastBackupAt, lastBackupStatus: r.lastBackupStatus };
     }
   } catch (e) {
     recordResult(false, e.message);
+    const r = getConfig();
     console.error('[备份] 失败:', e.message);
-    return { success: false, error: e.message };
+    return { success: false, error: e.message, lastBackupAt: r.lastBackupAt, lastBackupStatus: r.lastBackupStatus };
   }
 }
 
