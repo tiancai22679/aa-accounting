@@ -540,7 +540,10 @@ var App = {
     var categories = this._getCategories();
 
     var memberCheckboxes = memberList.map(function(m) {
-      return '<label class="checkbox-label"><input type="checkbox" class="chk-member" value="' + m.user_id + '" checked /><span>' + self.escape(m.nickname || '成员') + '</span></label>';
+      // 已结算成员默认不勾选（仍可手动勾选），并显示"已结算"标记说明原因
+      var isSettled = m.is_settled == 1;
+      var settledMark = isSettled ? ' <span class="member-settled-mark">已结算</span>' : '';
+      return '<label class="checkbox-label"><input type="checkbox" class="chk-member" value="' + m.user_id + '" ' + (isSettled ? '' : 'checked') + ' /><span>' + self.escape(m.nickname || '成员') + settledMark + '</span></label>';
     }).join('');
 
     var payerOptions = memberList.map(function(m) {
