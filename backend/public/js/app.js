@@ -239,10 +239,12 @@ var App = {
       this._cachedMembers = members;
       this._currentDetail = detail; // 缓存详情用于判断权限
 
-      // 初始化账单分页状态
+      // 初始化账单分页/搜索状态
       this.expensePage = 1;
       this.expensePageSize = 20;
       this.expenseGroupId = groupId;
+      this.expenseKeyword = '';
+      this._searchTimer = null;
 
       var isOwner = detail.created_by === this.user.id;
 
@@ -272,11 +274,34 @@ var App = {
           (isOwner ? '<button id="btn-delete-group" class="btn btn-outline btn-danger">🗑️ 删除账本</button>' : '') +
         '</div>' +
         '<div class="section-title">账单记录</div>' +
+        '<div class="expense-search-bar">' +
+          '<input type="text" id="expense-search" class="expense-search-input" placeholder="🔍 搜索描述 / 金额 / 日期" autocomplete="off" />' +
+          '<button type="button" id="btn-expense-search-clear" class="expense-search-clear hidden" title="清除搜索">✕</button>' +
+        '</div>' +
         '<div class="expense-list" id="expense-list"></div>' +
         '<div class="expense-pagination" id="expense-pagination"></div>';
 
       $('#btn-add-expense').onclick = function() { self.renderAddExpense(groupId, self._cachedMembers); };
       $('#btn-settlement').onclick = function() { self.renderSettlement(groupId); };
+
+      // 账单模糊搜索（防抖 300ms）
+      var searchInput = document.getElementById('expense-search');
+      var clearBtn = document.getElementById('btn-expense-search-clear');
+      searchInput.oninput = function() {
+        var kw = this.value.trim();
+        self.expenseKeyword = kw;
+        self.expensePage = 1;
+        clearBtn.classList.toggle('hidden', kw === '');
+        clearTimeout(self._searchTimer);
+        self._searchTimer = setTimeout(function() { self._renderExpenseList(); }, 300);
+      };
+      clearBtn.onclick = function() {
+        searchInput.value = '';
+        self.expenseKeyword = '';
+        self.expensePage = 1;
+        clearBtn.classList.add('hidden');
+        self._renderExpenseList();
+      };
 
       // 编辑账本名称（仅创建人）
       if (isOwner) {
@@ -316,11 +341,11 @@ var App = {
     listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><p>加载中...</p></div>';
 
     try {
-      var data = await API.getExpenses(groupId, this.expensePage, this.expensePageSize);
+      var data = await API.getExpenses(groupId, this.expensePage, this.expensePageSize, this.expenseKeyword);
       this.expenseTotal = data.total || 0;
       var list = (data.list || []);
 
-      var html = self._buildExpenseListHtml(list);
+      var html = self._buildExpenseListHtml(list, self.expenseKeyword);
       listEl.innerHTML = html;
 
       // 绑定账单卡片点击事件
@@ -339,8 +364,11 @@ var App = {
   },
 
   // 按日期分组构建账单卡片 HTML
-  _buildExpenseListHtml(list) {
+  _buildExpenseListHtml(list, keyword) {
     if (!list || list.length === 0) {
+      if (keyword) {
+        return '<div class="empty-state"><div class="empty-icon">🔍</div><p>没有找到与「' + this.escape(keyword) + '」匹配的账单</p></div>';
+      }
       return '<div class="empty-state"><div class="empty-icon">📝</div><p>还没有账单，点击下方按钮添加</p></div>';
     }
     var self = this;

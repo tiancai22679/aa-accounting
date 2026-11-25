@@ -128,12 +128,12 @@ router.post('/', (req, res) => {
 });
 
 /**
- * 获取群组账单列表
- * GET /api/expenses?groupId=1&page=1&pageSize=20
+ * 获取群组账单列表（支持 description/amount/date 模糊搜索）
+ * GET /api/expenses?groupId=1&page=1&pageSize=20&keyword=xxx
  */
 router.get('/', (req, res) => {
   try {
-    const { groupId, page = 1, pageSize = 20 } = req.query;
+    const { groupId, page = 1, pageSize = 20, keyword = '' } = req.query;
     const db = getDB();
 
     if (!groupId) {
@@ -150,16 +150,28 @@ router.get('/', (req, res) => {
 
     const offset = (Number(page) - 1) * Number(pageSize);
 
+    // 构造搜索条件：描述 / 金额 / 日期 任一命中即可
+    const kw = String(keyword || '').trim();
+    let whereSql = 'e.group_id = ?';
+    let whereParams = [groupId];
+    if (kw) {
+      // 转义 LIKE 通配符，避免用户输入 % / _ 被当作通配
+      const escaped = kw.replace(/[\\%_]/g, '\\$&');
+      const pattern = '%' + escaped + '%';
+      whereSql += ' AND (e.description LIKE ? ESCAPE \'\\\' OR CAST(e.amount AS TEXT) LIKE ? ESCAPE \'\\\' OR e.expense_date LIKE ? ESCAPE \'\\\')';
+      whereParams = whereParams.concat([pattern, pattern, pattern]);
+    }
+
     const expenses = db.all(`
       SELECT e.*, u.nickname as payer_name, u.avatar_url as payer_avatar,
         c.name as category_name, c.icon as category_icon
       FROM expenses e
       LEFT JOIN users u ON e.payer_id = u.id
       LEFT JOIN categories c ON e.category_id = c.id
-      WHERE e.group_id = ?
+      WHERE ${whereSql}
       ORDER BY e.expense_date DESC, e.created_at DESC
       LIMIT ? OFFSET ?
-    `, [groupId, Number(pageSize), offset]);
+    `, whereParams.concat([Number(pageSize), offset]));
 
     // 获取每条账单的分摊详情
     for (const expense of expenses) {
@@ -172,8 +184,8 @@ router.get('/', (req, res) => {
     }
 
     const total = db.get(
-      'SELECT COUNT(*) as cnt FROM expenses WHERE group_id = ?',
-      [groupId]
+      `SELECT COUNT(*) as cnt FROM expenses e WHERE ${whereSql}`,
+      whereParams
     );
 
     res.json({
@@ -182,7 +194,8 @@ router.get('/', (req, res) => {
         list: expenses,
         total: total.cnt,
         page: Number(page),
-        pageSize: Number(pageSize)
+        pageSize: Number(pageSize),
+        keyword: kw
       }
     });
   } catch (err) {

@@ -103,10 +103,11 @@ const API = {
   },
 
   // === Expenses ===
-  getExpenses(groupId, page, pageSize) {
+  getExpenses(groupId, page, pageSize, keyword) {
     var params = 'groupId=' + groupId;
     if (page) params += '&page=' + page;
     if (pageSize) params += '&pageSize=' + pageSize;
+    if (keyword) params += '&keyword=' + encodeURIComponent(keyword);
     return this.request('GET', '/expenses?' + params);
   },
 
